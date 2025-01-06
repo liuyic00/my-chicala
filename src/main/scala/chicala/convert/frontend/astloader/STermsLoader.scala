@@ -31,20 +31,21 @@ trait STermsLoader { self: Scala2Reader =>
       val (tree, _) = passThrough(tr)
       tree match {
         case Assign(lhs, rhs) => {
-          val left  = MTermLoader(cInfo, lhs).get._2.get
-          val right = MTermLoader(cInfo, rhs).get._2.get
-          Some(cInfo, Some(SAssign(left, right)))
+          val (newCInfo, left :: right :: Nil) = MTermLoader.loadTerms(cInfo, List(lhs, rhs))
+          Some(newCInfo, Some(SAssign(left, right)))
         }
         case Apply(Select(qualifier, name), args) if name.toString().endsWith("_$eq") =>
           val leftName = name.toString().dropRight(4)
-          val left = MTermLoader(
+          val (newCInfo, left :: right :: Nil) = MTermLoader.loadTerms(
             cInfo,
-            // this `TypeTree` only used for distinguish `SignalType` and other
-            Typed(Select(qualifier, leftName), TypeTree(args.head.tpe))
-          ).get._2.get
-          val right = MTermLoader(cInfo, args.head).get._2.get
+            List(
+              // this `TypeTree` only used for distinguish `SignalType` and other
+              Typed(Select(qualifier, leftName), TypeTree(args.head.tpe)),
+              args.head
+            )
+          )
 
-          Some((cInfo, Some(SAssign(left, right))))
+          Some((newCInfo, Some(SAssign(left, right))))
 
         case _ => None
       }
@@ -56,9 +57,8 @@ trait STermsLoader { self: Scala2Reader =>
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Apply(fun, args) =>
-          val sTerm = STermLoader(cInfo, fun).get._2.get
-          val mArgs = args.map(MTermLoader(cInfo, _).get._2.get)
-          val tpe   = MTypeLoader.fromTpt(tpt).get
+          val (newCInfo, (sTerm: STerm) :: mArgs) = MTermLoader.loadTerms(cInfo, fun :: args)
+          val tpe                                 = MTypeLoader.fromTpt(tpt).get
           Some((cInfo, Some(SApply(sTerm, mArgs, tpe))))
         case _ => None
       }

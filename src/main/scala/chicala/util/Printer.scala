@@ -6,6 +6,25 @@ trait Printer extends Format {
   val global: Global
   import global._
 
+  object logger {
+    var indent                  = 0
+    var store: Map[String, Any] = Map.empty
+    var enable                  = true
+
+    def log(msg: String) = if (enable) global.log("| " * indent + msg)
+
+    /** Print messages for debugging and should be removed after debugging. */
+    def debug(msg: String) = log(msg)
+    def in(msg: String) = {
+      log(s"in ${msg}")
+      indent += 1
+    }
+    def out(msg: String) = {
+      indent -= 1
+      log(s"out ${msg}")
+    }
+  }
+
   def unprocessedTree(tree: Tree, from: String) = {
     reporter.warning(
       tree.pos,

@@ -6,20 +6,20 @@ trait CTermsLoader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object ConnectLoader extends MTermLoader {
+  object ConnectLoader extends Loader[Connect] {
     def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[Connect])] = {
       val (tree, _) = passThrough(tr)
       tree match {
         case Apply(Select(qualifier, TermName("$colon$eq")), args) if isChiselSignalType(qualifier) =>
           assert(args.length == 1, "should have one right expr")
-          val left  = MTermLoader(cInfo, qualifier).get._2.get
-          val right = MTermLoader(cInfo, args.head).get._2.get
-          Some(cInfo, Some(Connect(left, right)))
+
+          val (newCInfo, left :: right :: Nil) = MTermLoader.loadTerms(cInfo, List(qualifier, args.head))
+          Some(newCInfo, Some(Connect(left, right)))
         case _ => None
       }
     }
   }
-  object CApplyLoader extends MTermLoader {
+  object CApplyLoader extends Loader[CApply] {
     def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[CApply])] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
@@ -34,9 +34,8 @@ trait CTermsLoader { self: Scala2Reader =>
                   errorTree(tpt, s"Not a processable MType `${x}`")
                   SignalType.empty
               }
-              val operands = (qualifier :: args).map(MTermLoader(cInfo, _).get._2.get)
-              val cApply   = CApply(op, tpe, operands)
-              Some((cInfo, Some(cApply)))
+              val (newCInfo, operands) = MTermLoader.loadTerms(cInfo, qualifier :: args)
+              Some((newCInfo, Some(CApply(op, tpe, operands))))
             case None =>
               unprocessedTree(tr, s"CApplyLoader `${opName}`")
               None
@@ -46,15 +45,16 @@ trait CTermsLoader { self: Scala2Reader =>
           val fName = f.toString()
           COpLoader(fName) match {
             case Some(op) =>
-              val tpe = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
-              Some((cInfo, Some(CApply(op, tpe, args.map(MTermLoader(cInfo, _).get._2.get)))))
+              val tpe                  = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
+              val (newCInfo, operands) = MTermLoader.loadTerms(cInfo, args)
+              Some((newCInfo, Some(CApply(op, tpe, operands))))
             case None => None
           }
         }
       }
     }
   }
-  object WhenLoader extends MTermLoader {
+  object WhenLoader extends Loader[When] {
     def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[When])] = {
       def bodyFromTree(cInfo: CircuitInfo, tr: Tree): List[MStatement] = {
         val (tree, _) = passThrough(tr)
@@ -79,44 +79,52 @@ trait CTermsLoader { self: Scala2Reader =>
       val (tree, _) = passThrough(tr)
       tree match {
         case Apply(Apply(cwa, condArgs), args) if isChisel3WhenApply(cwa) => {
-          val cond  = MTermLoader(cInfo, condArgs.head).get._2.get
-          val whenp = StatementReader(cInfo, args.head).get._2.get
-          Some((cInfo, Some(When(cond, whenp, EmptyMTerm))))
+          val (newCInfo, (cond: MTerm) :: whenp :: Nil) = loadsWithUpdateReaderInfo(cInfo)(
+            MTermLoader(_, condArgs.head),
+            StatementReader(_, args.head)
+          )
+          Some((newCInfo, Some(When(cond, whenp, EmptyMTerm))))
         }
         case Apply(Select(qualifier, TermName("otherwise")), args) => {
-          val Some((newCInfo, Some(when))) = WhenLoader(cInfo, qualifier)
-          val otherp                       = StatementReader(cInfo, args.head).get._2.get
-          Some((cInfo, Some(When(when.cond, when.whenp, otherp))))
+          val Some((cInfo1, Some(when))) = WhenLoader(cInfo, qualifier)
+          val (cInfo2, otherp)           = StatementReader(cInfo.updatedWithReaderInfo(cInfo1), args.head).get
+          Some((cInfo.updatedWithReaderInfo(cInfo2), Some(When(when.cond, when.whenp, otherp.get))))
         }
         case Apply(Apply(Select(qualifier, TermName("elsewhen")), condArgs), args) => {
-          val Some((newCInfo, Some(when))) = WhenLoader(cInfo, qualifier)
 
-          val elseCond     = MTermLoader(cInfo, condArgs.head).get._2.get
-          val elseWhen     = When(elseCond, StatementReader(cInfo, args.head).get._2.get, EmptyMTerm)
-          val whenElseWhen = pushBackElseWhen(when, elseWhen)
+          val (newCInfo, (when: When) :: (elseCond: MTerm) :: elseThen :: Nil) = loadsWithUpdateReaderInfo(cInfo)(
+            WhenLoader(_, qualifier),
+            MTermLoader(_, condArgs.head),
+            StatementReader(_, args.head)
+          )
 
-          Some((cInfo, Some(whenElseWhen)))
+          val whenElseWhen = pushBackElseWhen(when, When(elseCond, elseThen, EmptyMTerm))
+
+          Some((newCInfo, Some(whenElseWhen)))
         }
         case _ => None
       }
     }
   }
 
-  object SwitchLoader extends MTermLoader {
+  object SwitchLoader extends Loader[Switch] {
     def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[Switch])] = {
       val (tree, tpt) = passThrough(tr)
       if (!isChisel3UtilSwitchContextType(tpt)) return None
 
       tree match {
         case Apply(Apply(Select(qualifier, TermName("is")), vArgs), bodyArgs) =>
-          val switch = SwitchLoader(cInfo, qualifier).get._2.get
-
-          val v       = MTermLoader(cInfo, vArgs.head).get._2.get
-          val branchp = MTermLoader(cInfo, bodyArgs.head).get._2.get
-          Some((cInfo, Some(switch.appended(v, branchp))))
+          val (newCInfo, (switch: Switch) :: v :: branchp :: Nil) = loadsWithUpdateReaderInfo(cInfo)(
+            SwitchLoader(_, qualifier),
+            MTermLoader(_, vArgs.head),
+            MTermLoader(_, bodyArgs.head)
+          )
+          Some((newCInfo, Some(switch.appended(v, branchp))))
         case Apply(Select(New(t), termNames.CONSTRUCTOR), args) if isChisel3UtilSwitchContextType(t) =>
-          val cond = MTermLoader(cInfo, args.head).get._2.get
-          Some((cInfo, Some(Switch(cond, List.empty))))
+          val (newCInfo, cond :: Nil) = loadsWithUpdateReaderInfo(cInfo)(
+            MTermLoader(_, args.head)
+          )
+          Some((newCInfo, Some(Switch(cond, List.empty))))
         case _ =>
           errorTree(tr, "Unknow structure in SwitchLoader")
           None
@@ -125,20 +133,21 @@ trait CTermsLoader { self: Scala2Reader =>
     }
   }
 
-  object AssertLoader extends MTermLoader {
+  object AssertLoader extends Loader[Assert] {
     def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[Assert])] = {
       val (tree, _) = passThrough(tr)
       if (isReturnAssert(tree)) {
         tree match {
           case Apply(Ident(TermName("_applyWithSourceLinePrintable")), args) =>
-            Some(cInfo, Some(Assert(MTermLoader(cInfo, args.head).get._2.get)))
+            val (newCInfo, ast :: Nil) = MTermLoader.loadTerms(cInfo, args.head :: Nil)
+            Some(newCInfo, Some(Assert(ast)))
           case _ => None
         }
       } else None
     }
   }
 
-  object LitLoader extends MTermLoader {
+  object LitLoader extends Loader[Lit] {
     private def nameToSomeLitGen(name: Name): (STerm, CSize) => Option[Lit] = {
       name.toString() match {
         case "U" => (litExp, width) => Some(Lit(litExp, UInt(width, Node, Undirect)))

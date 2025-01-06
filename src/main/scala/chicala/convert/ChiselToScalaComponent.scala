@@ -148,6 +148,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
     }
 
     def processTodos(): Unit = {
+      logger.log(s"processTodos: ${readerInfo.todos.size}")
       var lastNum = readerInfo.todos.size + 1
       while (readerInfo.todos.size > 0 && lastNum > readerInfo.todos.size) {
         val todos = readerInfo.todos

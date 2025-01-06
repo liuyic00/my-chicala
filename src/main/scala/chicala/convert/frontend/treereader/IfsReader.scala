@@ -11,11 +11,9 @@ trait IfsReader { self: Scala2Reader =>
       val (tree, tpt) = passThrough(tr)
       tree match {
         case i @ If(cond, thenp, elsep) => {
-          val c   = STermLoader(cInfo, cond).get._2.get
-          val t   = MTermLoader(cInfo, thenp).get._2.get
-          val e   = MTermLoader(cInfo, elsep).get._2.get
-          val tpe = MTypeLoader.fromTpt(tpt).get
-          Some((cInfo, Some(SIf(c, t, e, tpe))))
+          val (newCInfo, (c: STerm) :: t :: e :: Nil) = MTermLoader.loadTerms(cInfo, List(cond, thenp, elsep))
+          val tpe                                     = MTypeLoader.fromTpt(tpt).get
+          Some((newCInfo, Some(SIf(c, t, e, tpe))))
         }
         case _ =>
           unprocessedTree(tree, "IfsReader")

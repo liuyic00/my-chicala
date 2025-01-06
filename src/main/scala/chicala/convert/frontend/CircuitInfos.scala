@@ -110,9 +110,15 @@ trait CircuitInfos { self: Scala2Reader =>
       }
     }
 
-    def settedDependentClassNotDef = copy(readerInfo = readerInfo.settedDependentClassNotDef)
-    def isDependentClassNotDef     = readerInfo.isDependentClassNotDef
-    def needExit                   = readerInfo.needExit
+    def settedDependentClassNotDef = {
+      copy(readerInfo = readerInfo.settedDependentClassNotDef)
+    }
+    def isDependentClassNotDef = readerInfo.isDependentClassNotDef
+    def needExit               = readerInfo.needExit
+
+    def updatedWithReaderInfo(cInfo: CircuitInfo): CircuitInfo = {
+      this.copy(readerInfo = cInfo.readerInfo)
+    }
   }
 
   object CircuitInfo {

@@ -28,13 +28,18 @@ trait DefDefsReader { self: Scala2Reader =>
           if (name == termNames.CONSTRUCTOR) {
             // constructor of this class
             val vps = vpss.flatten.asInstanceOf[List[SValDef]]
-            Some((cInfo.updatedParams(vps), None))
+            Some((cInfo.updatedWithReaderInfo(newCInfo).updatedParams(vps), None))
           } else {
             // function
-            val defp = StatementReader(newCInfo, rhs).get._2.get
+            val (nnCInfo, Some(defp)) = StatementReader(newCInfo, rhs).get
             assertError(defp.nonEmpty, rhs.pos, s"function $name should have body")
             val tpe = MTypeLoader.fromTpt(tpt).get
-            Some((cInfo.updatedFunc(name, tpe), Some(SDefDef(name, vpss, tpe, defp))))
+            Some(
+              (
+                cInfo.updatedWithReaderInfo(nnCInfo).updatedFunc(name, tpe),
+                Some(SDefDef(name, vpss, tpe, defp))
+              )
+            )
           }
         }
         case _ =>
