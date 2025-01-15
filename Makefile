@@ -15,6 +15,8 @@ test-debug:
 test-sim:
 	sbt publishLocal "project testcase" clean 'set scalacOptions+="-P:chicala:simulation:true"' compile
 
+test-show-scalac-help:
+	sbt publishLocal "project testcase" 'set scalacOptions += "-help"' compile
+
 test-clean:
 	rm -rf test_run_dir
-

@@ -57,7 +57,11 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
       val packageDef  = unit.body.asInstanceOf[PackageDef]
       val packageName = packageDef.pid.toString()
 
-      for (tree @ ClassDef(mods, name, tparams, Template(parents, self, body)) <- packageDef.stats) {
+      for (
+        tree @ ClassDef(mods, name, tparams, Template(parents, self, body)) <- packageDef.stats
+        if (ChicalaConfig.whitelist.isEmpty || ChicalaConfig.whitelist.contains(s"$packageName.$name"))
+      ) {
+        inform(s"chicala processing $packageName.$name")
         applyOnTree(tree, packageName)
       }
     }

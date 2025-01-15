@@ -15,6 +15,7 @@ object ChicalaPlugin {
 
 object ChicalaConfig {
   var simulation = false
+  var whitelist  = List.empty[String]
 }
 
 class ChicalaPlugin(val global: Global) extends Plugin {
@@ -37,6 +38,14 @@ class ChicalaPlugin(val global: Global) extends Plugin {
           case _: String =>
             error("simulation not understood: " + emitFormat)
         }
+      } else if (option.startsWith("whitelist:")) {
+        ChicalaConfig.whitelist = option
+          .substring("whitelist:".length)
+          .split(";")
+          .map(_.strip())
+          .toList
+        inform("chicala whitelist:")
+        ChicalaConfig.whitelist.foreach(s => inform(" " + s))
       } else {
         error("Option not understood: " + option)
       }
@@ -45,6 +54,10 @@ class ChicalaPlugin(val global: Global) extends Plugin {
   }
 
   override val optionsHelp: Option[String] = Some(
-    "  -P:chicala:simulation:<true/false>             set emit mode, for simulation or not"
+    """|  -P:chicala:simulation:<true/false>
+       |                               Set emit mode, for simulation or not. [false]
+       |  -P:chicala:whitelist:<package.class>;<package.class>;...
+       |                               Only modules in the whitelist will be processed, not set to process all modules. [not set]
+       |""".stripMargin
   )
 }
