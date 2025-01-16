@@ -31,5 +31,6 @@ lazy val testcase = (project in file("testcase"))
       "-feature",
       "-Xcheckinit"
     ),
-    addCompilerPlugin("cn.ac.ios.tis" %% "chicala" % "0.1.0-SNAPSHOT")
+    addCompilerPlugin("edu.berkeley.cs" % "chisel3-plugin" % chiselVersion cross CrossVersion.full),
+    addCompilerPlugin("cn.ac.ios.tis"  %% "chicala"        % "0.1.0-SNAPSHOT")
   )

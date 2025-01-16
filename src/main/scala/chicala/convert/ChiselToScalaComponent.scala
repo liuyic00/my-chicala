@@ -23,8 +23,13 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
 
   val runsAfter: List[String] = List("typer")
 
-  // to keep recursive structure
-  override val runsBefore: List[String] = List("tailcalls")
+  override val runsBefore: List[String] = List(
+    // to keep recursive structure
+    "tailcalls",
+    // make sure run before chisel plugin
+    "chiselbundlephase",
+    "chiselcomponent"
+  )
 
   val phaseName: String = ChiselToScalaComponent.phaseName
 
