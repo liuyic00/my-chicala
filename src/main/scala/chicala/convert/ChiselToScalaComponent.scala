@@ -88,28 +88,15 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
             showFormattedRaw(tree) + "\n"
           )
 
-          val someInfoAndDef = CClassDefLoader(tree, packageName)(readerInfo)
+          val eitherDef = CClassDefLoader(tree, packageName)(readerInfo)
 
-          val (newRInfo, someCClassDef) = someInfoAndDef match {
-            case Some((newRInfo, someCClassDef)) => { (newRInfo, someCClassDef) }
-            case None =>
+          eitherDef match {
+            case Left(Failed) =>
               reporter.error(tree.pos, "Unknown error in ChiselToScalaPhase #1")
-              return
-          }
+            case Left(DependentClassNotDef) =>
+              readerInfo = readerInfo.addedTodo(tree, packageName)
 
-          if (newRInfo.needExit) {
-            if (newRInfo.isDependentClassNotDef) {
-              readerInfo = newRInfo.clearedDependentClassNotDef.addedTodo(tree, packageName)
-            }
-            if (readerInfo.needExit == true)
-              reporter.error(tree.pos, "Unknown error in ChiselToScalaPhase #2")
-            return
-          }
-
-          someCClassDef match {
-            case None =>
-              reporter.error(tree.pos, "Unknown error in ChiselToScalaPhase #3")
-            case Some(cClassDef) =>
+            case Right(cClassDef) => {
               Format.saveToFile(
                 packageDir + s"/${name}.chicala.scala",
                 cClassDef.toString + "\n"
@@ -150,9 +137,8 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                     )
                 case _ =>
               }
-
+            }
           }
-
       }
     }
 

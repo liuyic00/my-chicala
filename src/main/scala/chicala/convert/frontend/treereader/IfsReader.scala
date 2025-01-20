@@ -6,18 +6,21 @@ trait IfsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object IfReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[SIf])] = {
+  object IfReader extends Loader[SIf] {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SIf] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case i @ If(cond, thenp, elsep) => {
-          val (newCInfo, (c: STerm) :: t :: e :: Nil) = MTermLoader.loadTerms(cInfo, List(cond, thenp, elsep))
-          val tpe                                     = MTypeLoader.fromTpt(tpt).get
-          Some((newCInfo, Some(SIf(c, t, e, tpe))))
+          MTermLoader.loadTerms(cInfo, List(cond, thenp, elsep)).flatMap {
+            case Loaded(newCInfo, (c: STerm) :: t :: e :: Nil) =>
+              val tpe = MTypeLoader.fromTpt(tpt).get
+              Right(Loaded(newCInfo, SIf(c, t, e, tpe)))
+            case _ => loadMutilpleMatchError(i)
+          }
         }
         case _ =>
           unprocessedTree(tree, "IfsReader")
-          None
+          Left(Failed)
       }
     }
   }

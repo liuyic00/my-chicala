@@ -7,15 +7,19 @@ trait BlocksReader { self: Scala2Reader =>
   import global._
 
   object BlockReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[SBlock])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SBlock] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Block(stats, expr) =>
-          val (newCInfo, cList) = StatementReader.fromListTree(cInfo, stats :+ expr)
-          Some((newCInfo, Some(SBlock(cList, EmptyMType))))
+          StatementReader
+            .fromListTree(cInfo, stats :+ expr)
+            .map { case Loaded(newCInfo, cList) =>
+              // Block not influence outside cInfo
+              Loaded(cInfo, SBlock(cList, EmptyMType))
+            }
         case _ =>
           unprocessedTree(tree, "BlockReader")
-          None
+          Left(Failed)
       }
 
     }

@@ -7,7 +7,7 @@ trait MTermsLoader { self: Scala2Reader =>
   import global._
 
   object MTermLoader extends Loader[MTerm] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[MTerm])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case _: Apply    => ApplyReader(cInfo, tr)
@@ -19,13 +19,14 @@ trait MTermsLoader { self: Scala2Reader =>
         case _: Function => FunctionReader(cInfo, tr)
         case _: Match    => MatchReader(cInfo, tr)
         case _: Assign   => AssignReader(cInfo, tr)
-        case EmptyTree   => Some(cInfo, None)
+        case EmptyTree   => Right(Loaded(cInfo, EmptyMTerm))
       }
     }
 
-    def loadTerms(cInfo: CircuitInfo, trees: List[Tree]): (CircuitInfo, List[MTerm]) = {
-      loadsWithUpdateReaderInfo(cInfo)(trees.map(x => (y => MTermLoader(y, x))): _*)
+    def loadTerms(cInfo: CircuitInfo, trees: List[Tree]): LREitherLoaded[List[MTerm]] = {
+      loadMutilple(cInfo)(trees.map(x => (y => MTermLoader(y, x))): _*)
     }
+
   }
 
 }

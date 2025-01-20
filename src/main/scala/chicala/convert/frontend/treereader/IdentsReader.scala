@@ -6,19 +6,19 @@ trait IdentsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object IdentReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[MTerm])] = {
+  object IdentReader extends Loader[MTerm] {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case i @ Ident(name: TermName) =>
           if (isChiselSignalType(i))
-            Some((cInfo, Some(SignalRef(i, cInfo.getSignalType(i)))))
+            Right(Loaded(cInfo, SignalRef(i, cInfo.getSignalType(i))))
           else {
-            Some((cInfo, Some(SIdent(name, MTypeLoader.fromTpt(tpt).get))))
+            Right(Loaded(cInfo, SIdent(name, MTypeLoader.fromTpt(tpt).get)))
           }
         case _ =>
           unprocessedTree(tree, "IdentReader")
-          None
+          Left(Failed)
       }
 
     }

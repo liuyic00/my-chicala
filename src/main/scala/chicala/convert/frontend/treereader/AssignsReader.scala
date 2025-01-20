@@ -7,8 +7,17 @@ trait AssignsReader { self: Scala2Reader =>
   import global._
 
   object AssignReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[MTerm])] = {
-      SAssignLoader(cInfo, tr)
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SAssign] = {
+      SAssignLoader(cInfo, tr).flatMap {
+        case value: Loaded[_] =>
+          Right(value)
+        case Changed(_) =>
+          errorTree(tr, "AssignReader")
+          Left(Failed)
+        case NotThis =>
+          unprocessedTree(tr, "AssignReader")
+          Left(Failed)
+      }
     }
   }
 }

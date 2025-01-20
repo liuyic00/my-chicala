@@ -7,36 +7,39 @@ trait STermsLoader { self: Scala2Reader =>
   import global._
 
   object STermLoader extends Loader[STerm] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[STerm])] = {
-      MTermLoader(cInfo, tr).asInstanceOf[Option[(CircuitInfo, Option[STerm])]]
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[STerm] = {
+      MTermLoader(cInfo, tr).asInstanceOf[LREitherLoaded[STerm]]
     }
   }
 
   object STupleLoader extends Loader[STuple] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[STuple])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREither[STuple] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Apply(fun, args) if isScala2TupleApply(fun) =>
-          val sTuple = STuple(
-            args.map(MTermLoader(cInfo, _).get._2.get),
-            MTypeLoader.fromTpt(tpt).get.asInstanceOf[StTuple]
-          )
-          Some(cInfo, Some(sTuple))
-        case _ => None
+          MTermLoader
+            .loadTerms(cInfo, args)
+            .map(
+              _.map(
+                STuple(
+                  _,
+                  MTypeLoader.fromTpt(tpt).get.asInstanceOf[StTuple]
+                )
+              )
+            )
+        case _ => Right(NotThis)
       }
     }
   }
   object SAssignLoader extends Loader[SAssign] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[SAssign])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREither[SAssign] = {
       val (tree, _) = passThrough(tr)
-      tree match {
-        case Assign(lhs, rhs) => {
-          val (newCInfo, left :: right :: Nil) = MTermLoader.loadTerms(cInfo, List(lhs, rhs))
-          Some(newCInfo, Some(SAssign(left, right)))
-        }
+      (tree match {
+        case Assign(lhs, rhs) =>
+          MTermLoader.loadTerms(cInfo, List(lhs, rhs))
         case Apply(Select(qualifier, name), args) if name.toString().endsWith("_$eq") =>
           val leftName = name.toString().dropRight(4)
-          val (newCInfo, left :: right :: Nil) = MTermLoader.loadTerms(
+          MTermLoader.loadTerms(
             cInfo,
             List(
               // this `TypeTree` only used for distinguish `SignalType` and other
@@ -44,23 +47,29 @@ trait STermsLoader { self: Scala2Reader =>
               args.head
             )
           )
-
-          Some((newCInfo, Some(SAssign(left, right))))
-
-        case _ => None
+        case _ => Right(NotThis)
+      }).flatMap {
+        case Loaded(newCInfo, left :: right :: Nil) =>
+          Right(Loaded(newCInfo, SAssign(left, right)))
+        case NotThis => Right(NotThis)
+        case _       => loadMutilpleMatchError(tree)
       }
     }
   }
 
   object SApplyLoader extends Loader[SApply] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[SApply])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREither[SApply] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Apply(fun, args) =>
-          val (newCInfo, (sTerm: STerm) :: mArgs) = MTermLoader.loadTerms(cInfo, fun :: args)
-          val tpe                                 = MTypeLoader.fromTpt(tpt).get
-          Some((cInfo, Some(SApply(sTerm, mArgs, tpe))))
-        case _ => None
+          MTermLoader
+            .loadTerms(cInfo, fun :: args)
+            .flatMap {
+              case Loaded(newCInfo, (sTerm: STerm) :: mArgs) =>
+                Right(Loaded(newCInfo, SApply(sTerm, mArgs, MTypeLoader.fromTpt(tpt).get)))
+              case _ => loadMutilpleMatchError(fun)
+            }
+        case _ => Right(NotThis)
       }
     }
   }

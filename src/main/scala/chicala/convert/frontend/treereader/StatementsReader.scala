@@ -6,28 +6,30 @@ trait StatementsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object StatementReader {
-    def fromListTree(cInfo: CircuitInfo, body: List[Tree]): (CircuitInfo, List[MStatement]) = {
+  object StatementReader extends Loader[MStatement] {
+    def fromListTree(cInfo: CircuitInfo, body: List[Tree]): LREitherLoaded[List[MStatement]] = {
       logger.in("StatementReader.fromListTree")
-      val a = (body.foldLeft((cInfo, List.empty[MStatement])) { case ((info, past), tr) =>
-        StatementReader(info, tr) match {
-          case Some((newInfo, Some(newStat))) => (newInfo, newStat :: past) // reversed append #1
-          case Some((newInfo, None))          => (newInfo, past)
-          case None                           => (info, past)
+      val a = body
+        .foldLeft(Right(Loaded(cInfo, List.empty)): Either[LRExit, Loaded[List[MStatement]]]) {
+          case (Right(Loaded(info, revPast)), tr) =>
+            StatementReader(info, tr) match {
+              case Right(Loaded(newCInfo, newStat)) => Right(Loaded(newCInfo, newStat :: revPast))
+              case Right(Changed(newCInfo))         => Right(Loaded(newCInfo, revPast))
+              case Left(x: LRSkip)                  => Right(Loaded(info, revPast))
+              case Left(x: LRExit)                  => Left(x)
+            }
+          case (Left(x: LRExit), _) => Left(x)
         }
-      }) match { case (info, past) => (info, past.reverse) } // reverse #1
+        .map(_.map(_.reverse))
       logger.out("StatementReader.fromListTree")
       a
     }
 
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[MStatement])] = {
-      if (cInfo.needExit) Some(cInfo, None)
-      else {
-        val (tree, tpt) = passThrough(tr)
-        tree match {
-          case _: ValDef | _: DefDef => MDefLoader(cInfo, tr)
-          case _                     => MTermLoader(cInfo, tr)
-        }
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherSuccess[MStatement] = {
+      val (tree, tpt) = passThrough(tr)
+      tree match {
+        case _: ValDef | _: DefDef => MDefLoader(cInfo, tr)
+        case _                     => MTermLoader(cInfo, tr)
       }
     }
   }

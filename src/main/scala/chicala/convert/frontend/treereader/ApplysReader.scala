@@ -7,7 +7,7 @@ trait ApplysReader { self: Scala2Reader =>
   import global._
 
   object ApplyReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[(CircuitInfo, Option[MTerm])] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
       firstMatchIn[MTerm](
         cInfo,
         tr,
@@ -22,11 +22,15 @@ trait ApplysReader { self: Scala2Reader =>
           SAssignLoader(_, _),
           SApplyLoader(_, _)
         )
-      ) match {
-        case Some(value) => Some(value)
-        case None =>
+      ).flatMap {
+        case value: Loaded[_] =>
+          Right(value)
+        case NotThis =>
           unprocessedTree(tr, "ApplyReader")
-          None
+          Left(Failed)
+        case Changed(cInfo) =>
+          errorTree(tr, "ApplyReader")
+          Left(Failed)
       }
     }
   }

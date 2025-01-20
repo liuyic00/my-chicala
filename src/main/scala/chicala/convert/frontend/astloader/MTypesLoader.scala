@@ -22,18 +22,20 @@ trait MTypesLoader { self: Scala2Reader =>
 
   trait MTypeLoaderLib {}
 
-  object SignalTypeLoader extends MTypeLoaderLib {
+  object SignalTypeLoader extends Loader[SignalType] {
     def getWidth(cInfo: CircuitInfo, args: List[Tree]): CSize = args match {
       case Select(Apply(Select(cp, TermName("fromIntToWidth")), List(w)), TermName("W")) :: next
           if isChisel3Package(cp) =>
-        KnownSize(STermLoader(cInfo, w).get._2.get)
+        val Right(Loaded(_, ww)) = STermLoader(cInfo, w)
+        KnownSize(ww)
       case _ => UnknownSize
     }
 
     private def getVecArgs(cInfo: CircuitInfo, args: List[Tree]): (CSize, SignalType) = {
       if (args.length == 2) {
-        val size      = KnownSize(STermLoader(cInfo, args.head).get._2.get)
-        val cDataType = SignalTypeLoader(cInfo, args.tail.head).get
+        val Right(Loaded(_, ww))        = STermLoader(cInfo, args.head)
+        val size                        = KnownSize(ww)
+        val Right(Loaded(_, cDataType)) = SignalTypeLoader(cInfo, args.tail.head)
         (size, cDataType)
       } else {
         reporter.error(args.head.pos, "Unknow arg of Vec")
@@ -59,7 +61,7 @@ trait MTypesLoader { self: Scala2Reader =>
       someSignalType
     }
 
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[SignalType] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SignalType] = {
       val tree = passThrough(tr)._1
       tree match {
         case Apply(fun, args) =>
@@ -67,8 +69,7 @@ trait MTypesLoader { self: Scala2Reader =>
           someDirection match {
             /* Apply(<Input(_)>, List(<UInt(width.W)>)) */
             case Some(direction) =>
-              val tpe = SignalTypeLoader(cInfo, args.head)
-              tpe.map(_.updatedDriction(direction))
+              SignalTypeLoader(cInfo, args.head).map(_.map(_.updatedDriction(direction)))
 
             case None =>
               val f = passThrough(fun)._1
@@ -77,33 +78,39 @@ trait MTypesLoader { self: Scala2Reader =>
                 case Select(Select(cp, name), TermName("apply")) if isChisel3Package(cp) =>
                   val width = getWidth(cInfo, args)
                   name match {
-                    case TermName("UInt") => Some(UInt.empty.updatedWidth(width))
-                    case TermName("SInt") => Some(SInt.empty.updatedWidth(width))
-                    case TermName("Bool") => Some(Bool.empty)
+                    case TermName("UInt") => Right(Loaded(cInfo, UInt.empty.updatedWidth(width)))
+                    case TermName("SInt") => Right(Loaded(cInfo, SInt.empty.updatedWidth(width)))
+                    case TermName("Bool") => Right(Loaded(cInfo, Bool.empty))
                     case TermName("Vec") =>
                       val (size, sigType) = getVecArgs(cInfo, args)
-                      Some(Vec(size, Node, sigType))
+                      Right(Loaded(cInfo, Vec(size, Node, sigType)))
                     case _ =>
                       unprocessedTree(f, "SignalTypeLoader #1")
-                      Some(SignalType.empty)
+                      Left(Failed)
                   }
                 /* Apply(<new SomeBundle(_)>, List(<args>)) */
                 case Select(New(tpt), termNames.CONSTRUCTOR) =>
-                  val bundleFullName = tpt.tpe.toString()
-                  val someBundleDef  = cInfo.readerInfo.bundleDefs.get(bundleFullName)
-                  val mArgs          = args.map(MTermLoader(cInfo, _).get._2.get)
-                  someBundleDef.map(_.applyArgs(mArgs).bundle)
+                  val bundleFullName  = tpt.tpe.toString()
+                  val eitherBundleDef = cInfo.readerInfo.bundleDefs.get(bundleFullName).toRight(DependentClassNotDef)
+
+                  eitherBundleDef.flatMap { bundleDef =>
+                    MTermLoader
+                      .loadTerms(cInfo, args)
+                      .map({ case Loaded(_, mArgs) =>
+                        Loaded(cInfo, bundleDef.applyArgs(mArgs).bundle)
+                      })
+                  }
                 case _ =>
                   unprocessedTree(f, "SignalTypeLoader #2")
-                  Some(SignalType.empty)
+                  Left(Failed)
               }
           }
 
         case Block(stats, _) =>
-          Some(BundleDefLoader(cInfo, stats.head, "").get._2.get.bundle)
+          BundleDefLoader(cInfo, stats.head, "").map(_.map(_.bundle))
         case _ =>
           errorTree(tree, "SignalTypeLoader #3")
-          Some(SignalType.empty)
+          Left(Failed)
       }
     }
   }
@@ -174,10 +181,11 @@ trait MTypesLoader { self: Scala2Reader =>
       if (isChiselSignalType(tr)) SignalTypeLoader.fromTpt(tr)
       else STypeLoader.fromTpt(tr)
     }
-    def apply(cInfo: CircuitInfo, tr: Tree): Option[MType] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREither[MType] = {
       if (isChiselSignalType(tr))
         SignalTypeLoader(cInfo, tr)
-      else STypeLoader.fromTpt(tr)
+      else
+        STypeLoader.fromTpt(tr).map(Loaded(cInfo, _)).toRight(Failed)
     }
   }
 }

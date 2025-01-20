@@ -7,80 +7,87 @@ trait CClassDefsLoader { self: Scala2Reader =>
   import global._
 
   object CClassDefLoader {
-    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): Option[(ReaderInfo, Option[CClassDef])] = {
-      val someModuleDef = ModuleDefLoader(tree, pkg)
-      val someBundleDef = BundleDefLoader(tree, pkg)
-      someModuleDef match {
-        case Some(_) => someModuleDef
-        case None    => someBundleDef
-      }
+    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): Either[LRError, CClassDef] = {
+      LRSuccess
+        .getFirst(
+          List(
+            () => ModuleDefLoader(tree, pkg),
+            () => BundleDefLoader(tree, pkg)
+          )
+        )
+        .flatMap {
+          case Loaded(_, cClassDef) =>
+            Right(cClassDef)
+          case _ =>
+            unprocessedTree(tree, "CClassDefLoader")
+            Left(Failed)
+        }
     }
   }
 
   object ModuleDefLoader {
-    def apply(
-        tree: Tree,
-        pkg: String
-    )(implicit
-        readerInfo: ReaderInfo
-    ): Option[(ReaderInfo, Option[ModuleDef])] = tree match {
+    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): LREither[ModuleDef] = tree match {
       // only Class inherits chisel3.Module directly
       case ClassDef(mods, name, tparams, Template(parents, self, body)) if parents.exists {
             case Select(Ident(TermName("chisel3")), TypeName("Module")) => true
             case _                                                      => false
           } =>
-        val (cInfo, cBody): (CircuitInfo, List[MStatement]) =
-          StatementReader.fromListTree(CircuitInfo(name), body)
-        Some((cInfo.readerInfo, Some(ModuleDef(name, cInfo.params, cBody, pkg))))
-      case _ => None
+        StatementReader.fromListTree(CircuitInfo(name), body).map { case Loaded(cInfo, cBody) =>
+          Loaded(CircuitInfo.empty, ModuleDef(name, cInfo.params, cBody, pkg))
+        }
+      case _ => Right(NotThis)
     }
   }
 
   object BundleDefLoader {
-    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): Option[(ReaderInfo, Option[BundleDef])] = {
+    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): LREitherLoaded[BundleDef] = {
       val name = tree.asInstanceOf[ClassDef].name
-      BundleDefLoader(CircuitInfo(name), tree, pkg) match {
-        case None                         => None
-        case Some((cInfo, someBundleDef)) => Some(cInfo.readerInfo, someBundleDef)
+      BundleDefLoader(CircuitInfo(name), tree, pkg).map { case Loaded(cInfo, bundleDef) =>
+        Loaded(CircuitInfo.empty, bundleDef)
       }
     }
-    def apply(cInfo: CircuitInfo, tree: Tree, pkg: String): Option[(CircuitInfo, Option[BundleDef])] = {
+    def apply(cInfo: CircuitInfo, tree: Tree, pkg: String): LREitherLoaded[BundleDef] = {
       tree match {
         // only Class inherits chisel3.Bundle directly
         case ClassDef(mods, name, tparams, Template(parents, self, body)) if parents.exists {
               case Select(Ident(TermName("chisel3")), TypeName("Bundle")) => true
               case _                                                      => false
-            } =>
+            } => {
           var vps = List.empty[SValDef]
-          val (newCInfo, signals): (CircuitInfo, Map[TermName, SignalType]) =
-            body.foldLeft((cInfo, Map.empty[TermName, SignalType])) { case ((nowCInfo, nowSet), tr) =>
-              if (nowCInfo.needExit) (nowCInfo, nowSet)
-              else {
+          val eitherInfoSignals =
+            body.foldLeft(Right(Loaded(cInfo, Map.empty)): LREitherLoaded[Map[TermName, SignalType]]) {
+              case (Right(Loaded(nowCInfo, nowSet)), tr) => {
                 tr match {
                   case d @ DefDef(mods, termNames.CONSTRUCTOR, tparams, vparamss, tpt, rhs) =>
-                    val (nCInfo, vpss) = vparamssReader(nowCInfo, vparamss)
+                    val Right(Loaded(nCInfo, vpss)) = vparamssReader(nowCInfo, vparamss)
                     vps = vpss.flatten.asInstanceOf[List[SValDef]]
-                    (nCInfo, nowSet)
+                    Right(Loaded(nCInfo, nowSet))
                   case ValDef(mods, nameTmp, tpt, rhs) =>
                     val name = nameTmp.stripSuffix(" ")
                     if (isChiselSignalType(tpt)) {
                       SignalTypeLoader(nowCInfo, rhs) match {
-                        case Some(sigType) => (nowCInfo, nowSet + (name -> sigType))
-                        case None          => (nowCInfo.settedDependentClassNotDef, nowSet)
+                        case Right(Loaded(cf, sigType)) => Right(Loaded(cf, nowSet + (name -> sigType)))
+                        case Left(f: LRExit)            => Left(f)
+                        case Left(_: LRSkip)            => Right(Loaded(nowCInfo, nowSet))
                       }
                     } else {
                       ValDefReader(nowCInfo, tr) match {
-                        case Some((nCInfo, _)) => (nCInfo, nowSet)
-                        case None              => (nowCInfo, nowSet)
+                        case Right(x: LRSuccess[_]) => Right(Loaded(x.cInfo, nowSet))
+                        case Left(f: LRExit)        => Left(f)
+                        case Left(_: LRSkip)        => Right(Loaded(nowCInfo, nowSet))
                       }
                     }
-                  case _ => (nowCInfo, nowSet)
+                  case _ =>
+                    Right(Loaded(nowCInfo, nowSet))
                 }
               }
+              case (Left(f), tr) => Left(f)
             }
 
-          Some((newCInfo, Some(BundleDef(name, vps, Bundle(Node, signals), pkg))))
-        case _ => None
+          eitherInfoSignals.map { case Loaded(newCInfo, signals) =>
+            Loaded(newCInfo, BundleDef(name, vps, Bundle(Node, signals), pkg))
+          }
+        }
       }
     }
   }
