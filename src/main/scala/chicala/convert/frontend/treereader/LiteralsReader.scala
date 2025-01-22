@@ -7,13 +7,13 @@ trait LiteralsReader { self: Scala2Reader =>
   import global._
 
   object LiteralReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Literal(Constant(())) =>
-          Right(Loaded(cInfo, EmptyMTerm))
+          Right(ModifiedAndLoaded(cInfo, EmptyMTerm))
         case l @ Literal(Constant(value)) =>
-          Right(Loaded(cInfo, SLiteral(value, STypeLoader.fromTpt(tpt).get)))
+          Right(ModifiedAndLoaded(cInfo, SLiteral(value, STypeLoader.fromTpt(tpt).get)))
         case _ =>
           unprocessedTree(tree, "LiteralReader")
           Left(Failed)

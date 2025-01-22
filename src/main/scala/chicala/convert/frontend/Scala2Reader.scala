@@ -39,28 +39,30 @@ trait Scala2Reader
   case object DependentClassNotDef extends LRExit
 
   sealed trait LRResult[+A]
-  case object NotThis extends LRResult[Nothing]
+  sealed trait NotThis extends LRResult[Nothing]
+  case object NotThis  extends NotThis
   sealed trait LRSuccess[+A] extends LRResult[A] {
+    def mapValue[B](f: A => B): LRSuccess[B]
+  }
+  sealed trait LRModified[+A] extends LRSuccess[A] {
     def cInfo: CircuitInfo
-
-    def map[B](f: A => B): LRSuccess[B]
-    def flatMap[B](f: A => LRSuccess[B]): LRSuccess[B]
-    def mapCInfo(f: CircuitInfo => CircuitInfo): LRSuccess[A]
   }
-  case class Changed[+A](cInfo: CircuitInfo) extends LRSuccess[A] {
-    def map[B](f: A => B): Changed[B]                       = Changed(cInfo)
-    def flatMap[B](f: A => LRSuccess[B]): Changed[B]        = Changed(cInfo)
-    def mapCInfo(f: CircuitInfo => CircuitInfo): Changed[A] = Changed(f(cInfo))
-  }
-  case class Loaded[+A](cInfo: CircuitInfo, value: A) extends LRSuccess[A] {
-    def map[B](f: A => B): Loaded[B]                       = Loaded(cInfo, f(value))
-    def flatMap[B](f: A => LRSuccess[B]): Loaded[B]        = f(value).asInstanceOf[Loaded[B]]
-    def mapCInfo(f: CircuitInfo => CircuitInfo): Loaded[A] = Loaded(f(cInfo), value)
+  sealed trait LRLoaded[+A] extends LRSuccess[A] {
+    def value: A
   }
 
-  type LREither[+A]        = Either[LRError, LRResult[A]]
-  type LREitherSuccess[+A] = Either[LRError, LRSuccess[A]]
-  type LREitherLoaded[+A]  = Either[LRError, Loaded[A]]
+  case class Modified(cInfo: CircuitInfo) extends LRModified[Nothing] {
+    def mapValue[B](f: Nothing => B): Modified = this
+  }
+  case class Loaded[+A](value: A) extends LRLoaded[A] {
+    def mapValue[B](f: A => B): Loaded[B] = Loaded(f(value))
+  }
+  case class ModifiedAndLoaded[+A](cInfo: CircuitInfo, value: A) extends LRLoaded[A] with LRModified[A] {
+    def mapValue[B](f: A => B): ModifiedAndLoaded[B] = ModifiedAndLoaded(cInfo, f(value))
+  }
+
+  type LREither[+A]  = Either[LRError, LRResult[A]]
+  type LREitherT[+T] = Either[LRError, T]
 
   object LRSuccess {
     def getFirst[T](gens: List[() => LREither[T]]): LREither[T] = {

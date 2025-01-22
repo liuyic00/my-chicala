@@ -7,11 +7,11 @@ trait MatchsReader { self: Scala2Reader =>
   import global._
 
   object MatchReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SMatch] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SMatch]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Match(selector, cases) =>
-          MTermLoader(cInfo, selector).flatMap { case Loaded(tcInfo, mTerm) =>
+          MTermLoader(cInfo, selector).flatMap { case ModifiedAndLoaded(tcInfo, mTerm) =>
             val tpe = MTypeLoader.fromTpt(tpt).get
 
             val cs = loadMutilple(cInfo)(cases.map({ case CaseDef(pat, guard, body) =>
@@ -33,11 +33,11 @@ trait MatchsReader { self: Scala2Reader =>
                   cf.updatedVal(name, mType)
                 }
                 if (guard != EmptyTree) { unprocessedTree(guard, "MatchReader guard") }
-                MTermLoader(newCInfo, body).map(_.map(SCaseDef(nameTypes, _, MTypeLoader.fromTpt(tpt).get)))
+                MTermLoader(newCInfo, body).map(_.mapValue(SCaseDef(nameTypes, _, MTypeLoader.fromTpt(tpt).get)))
               }
             }): _*)
 
-            cs.map(_.map(cases => SMatch(mTerm, cases, tpe)))
+            cs.map(_.mapValue(cases => SMatch(mTerm, cases, tpe)))
           }
 
         case _ =>

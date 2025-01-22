@@ -7,8 +7,8 @@ trait STermsLoader { self: Scala2Reader =>
   import global._
 
   object STermLoader extends Loader[STerm] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[STerm] = {
-      MTermLoader(cInfo, tr).asInstanceOf[LREitherLoaded[STerm]]
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[STerm]] = {
+      MTermLoader(cInfo, tr).asInstanceOf[LREitherT[ModifiedAndLoaded[STerm]]]
     }
   }
 
@@ -20,7 +20,7 @@ trait STermsLoader { self: Scala2Reader =>
           MTermLoader
             .loadTerms(cInfo, args)
             .map(
-              _.map(
+              _.mapValue(
                 STuple(
                   _,
                   MTypeLoader.fromTpt(tpt).get.asInstanceOf[StTuple]
@@ -49,8 +49,8 @@ trait STermsLoader { self: Scala2Reader =>
           )
         case _ => Right(NotThis)
       }).flatMap {
-        case Loaded(newCInfo, left :: right :: Nil) =>
-          Right(Loaded(newCInfo, SAssign(left, right)))
+        case ModifiedAndLoaded(newCInfo, left :: right :: Nil) =>
+          Right(ModifiedAndLoaded(newCInfo, SAssign(left, right)))
         case NotThis => Right(NotThis)
         case _       => loadMutilpleMatchError(tree)
       }
@@ -65,8 +65,8 @@ trait STermsLoader { self: Scala2Reader =>
           MTermLoader
             .loadTerms(cInfo, fun :: args)
             .flatMap {
-              case Loaded(newCInfo, (sTerm: STerm) :: mArgs) =>
-                Right(Loaded(newCInfo, SApply(sTerm, mArgs, MTypeLoader.fromTpt(tpt).get)))
+              case ModifiedAndLoaded(newCInfo, (sTerm: STerm) :: mArgs) =>
+                Right(ModifiedAndLoaded(newCInfo, SApply(sTerm, mArgs, MTypeLoader.fromTpt(tpt).get)))
               case _ => loadMutilpleMatchError(fun)
             }
         case _ => Right(NotThis)

@@ -24,35 +24,35 @@ trait SelectsReader { self: Scala2Reader =>
       "scala.Predef.ArrowAssoc",
       "scala.Predef.refArrayOps"
     )
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case s @ Select(qualifier, name: TermName) => {
           if (sLibs.contains(s.toString()))
-            Right(Loaded(cInfo, SLib(s.toString(), StFunc)))
+            Right(ModifiedAndLoaded(cInfo, SLib(s.toString(), StFunc)))
           else if (isChiselSignalType(tpt)) {
             if (isChiselSignalType(qualifier) || isChiselModuleType(qualifier)) {
               COpLoader(name.toString()) match {
                 case Some(op) => // unary operator
-                  MTermLoader(cInfo, qualifier).map(_.map { operand =>
+                  MTermLoader(cInfo, qualifier).map(_.mapValue { operand =>
                     CApply(op, SignalTypeLoader.fromTpt(tpt).get, List(operand))
                   })
                 case None => // select from bundle / module io / This
                   // undefined operator will come to this case, but it is a bug
-                  Right(Loaded(cInfo, SignalRef(s, cInfo.getSignalType(s))))
+                  Right(ModifiedAndLoaded(cInfo, SignalRef(s, cInfo.getSignalType(s))))
               }
             } else if (isChiselLiteralType(qualifier)) {
               LitLoader(cInfo, tr).flatMap {
-                case l: Loaded[_] => Right(l)
+                case l: ModifiedAndLoaded[_] => Right(l)
                 case NotThis =>
                   unprocessedTree(tr, "SelectReader")
                   Left(Failed)
-                case Changed(cInfo) =>
+                case Modified(cInfo) =>
                   errorTree(tr, "SelectReader")
                   Left(Failed)
               }
             } else {
-              MTermLoader(cInfo, qualifier).map(_.map { from =>
+              MTermLoader(cInfo, qualifier).map(_.mapValue { from =>
                 val tpe = MTypeLoader.fromTpt(tpt).get
                 SSelect(from, name, tpe)
               })
@@ -61,12 +61,12 @@ trait SelectsReader { self: Scala2Reader =>
             val tpe = MTypeLoader.fromTpt(tpt).get
             qualifier match {
               case This(cInfo.name) =>
-                Right(Loaded(cInfo, SIdent(name, tpe)))
+                Right(ModifiedAndLoaded(cInfo, SIdent(name, tpe)))
               case Ident(innerName: TermName) =>
                 val sSelect = SSelect(SIdent(innerName, MTypeLoader.fromTpt(qualifier).get), name, tpe)
-                Right(Loaded(cInfo, sSelect))
+                Right(ModifiedAndLoaded(cInfo, sSelect))
               case t =>
-                MTermLoader(cInfo, t).map(_.map { from =>
+                MTermLoader(cInfo, t).map(_.mapValue { from =>
                   SSelect(from, name, tpe)
                 })
             }

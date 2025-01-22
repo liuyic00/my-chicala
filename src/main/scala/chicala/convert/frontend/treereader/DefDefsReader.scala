@@ -7,7 +7,7 @@ trait DefDefsReader { self: Scala2Reader =>
   import global._
 
   object DefDefReader extends Loader[MDef] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherSuccess[MDef] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[LRSuccess[MDef]] = {
       val tree = passThrough(tr)._1
       tree match {
         case d @ DefDef(mods, nameTmp, tparams, vparamss, tpt: TypeTree, rhs) => {
@@ -23,23 +23,23 @@ trait DefDefsReader { self: Scala2Reader =>
             return Left(Failed)
           }
 
-          val Right(Loaded(newCInfo, vpss: List[List[MValDef]])) = vparamssReader(cInfo, vparamss)
+          val Right(ModifiedAndLoaded(newCInfo, vpss: List[List[MValDef]])) = vparamssReader(cInfo, vparamss)
 
           if (name == termNames.CONSTRUCTOR) {
             // constructor of this class
             val vps = vpss.flatten.asInstanceOf[List[SValDef]]
-            Right(Changed(cInfo.updatedWithReaderInfo(newCInfo).updatedParams(vps)))
+            Right(Modified(cInfo.updatedWithReaderInfo(newCInfo).updatedParams(vps)))
           } else {
             // function
             StatementReader(newCInfo, rhs).flatMap {
-              case Changed(cInfo) =>
+              case Modified(cInfo) =>
                 errorTree(rhs, "DefDefReader")
                 Left(Failed)
-              case Loaded(_, defp) => {
+              case ModifiedAndLoaded(_, defp) => {
                 assertError(defp.nonEmpty, rhs.pos, s"function $name should have body")
                 val tpe = MTypeLoader.fromTpt(tpt).get
                 Right(
-                  Loaded(
+                  ModifiedAndLoaded(
                     cInfo.updatedFunc(name, tpe),
                     SDefDef(name, vpss, tpe, defp)
                   )
@@ -59,19 +59,20 @@ trait DefDefsReader { self: Scala2Reader =>
   protected def vparamssReader(
       cInfo: CircuitInfo,
       vparamss: List[List[ValDef]]
-  ): LREitherLoaded[List[List[MValDef]]] = {
+  ): LREitherT[ModifiedAndLoaded[List[List[MValDef]]]] = {
     vparamss
-      .foldLeft(Right(Loaded(cInfo, List.empty[List[MValDef]]))) { case (Right(Loaded(cf, ls)), vps) =>
-        val Right(Loaded(ncf, nl)) = vps.foldLeft(Right(Loaded(cf, List.empty[MValDef]))) {
-          case (Right(Loaded(c, l)), t) =>
-            ValDefReader(c, t) match {
-              case Right(Loaded(nc, svd: MValDef)) => Right(Loaded(nc, l :+ svd))
-              case x =>
-                unprocessedTree(t, "vparamssReader")
-                Right(Loaded(c, l))
-            }
-        }
-        Right(Loaded(ncf, ls :+ nl))
+      .foldLeft(Right(ModifiedAndLoaded(cInfo, List.empty[List[MValDef]]))) {
+        case (Right(ModifiedAndLoaded(cf, ls)), vps) =>
+          val Right(ModifiedAndLoaded(ncf, nl)) = vps.foldLeft(Right(ModifiedAndLoaded(cf, List.empty[MValDef]))) {
+            case (Right(ModifiedAndLoaded(c, l)), t) =>
+              ValDefReader(c, t) match {
+                case Right(ModifiedAndLoaded(nc, svd: MValDef)) => Right(ModifiedAndLoaded(nc, l :+ svd))
+                case x =>
+                  unprocessedTree(t, "vparamssReader")
+                  Right(ModifiedAndLoaded(c, l))
+              }
+          }
+          Right(ModifiedAndLoaded(ncf, ls :+ nl))
       }
   }
 

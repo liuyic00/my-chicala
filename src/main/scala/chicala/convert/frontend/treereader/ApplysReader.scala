@@ -7,7 +7,7 @@ trait ApplysReader { self: Scala2Reader =>
   import global._
 
   object ApplyReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[MTerm]] = {
       firstMatchIn[MTerm](
         cInfo,
         tr,
@@ -23,12 +23,12 @@ trait ApplysReader { self: Scala2Reader =>
           SApplyLoader(_, _)
         )
       ).flatMap {
-        case value: Loaded[_] =>
+        case value: ModifiedAndLoaded[_] =>
           Right(value)
         case NotThis =>
           unprocessedTree(tr, "ApplyReader")
           Left(Failed)
-        case Changed(cInfo) =>
+        case Modified(cInfo) =>
           errorTree(tr, "ApplyReader")
           Left(Failed)
       }

@@ -16,8 +16,8 @@ trait CTermsLoader { self: Scala2Reader =>
           MTermLoader
             .loadTerms(cInfo, List(qualifier, args.head))
             .flatMap {
-              case Loaded(newCInfo, left :: right :: Nil) =>
-                Right(Loaded(newCInfo, Connect(left, right)))
+              case ModifiedAndLoaded(newCInfo, left :: right :: Nil) =>
+                Right(ModifiedAndLoaded(newCInfo, Connect(left, right)))
               case _ => loadMutilpleMatchError(qualifier)
             }
         case _ => Right(NotThis)
@@ -41,7 +41,9 @@ trait CTermsLoader { self: Scala2Reader =>
               }
               MTermLoader
                 .loadTerms(cInfo, qualifier :: args)
-                .map { case Loaded(newCInfo, operands) => Loaded(newCInfo, CApply(op, tpe, operands)) }
+                .map { case ModifiedAndLoaded(newCInfo, operands) =>
+                  ModifiedAndLoaded(newCInfo, CApply(op, tpe, operands))
+                }
             case None =>
               unprocessedTree(tr, s"CApplyLoader `${opName}`")
               Left(Failed)
@@ -52,8 +54,8 @@ trait CTermsLoader { self: Scala2Reader =>
           COpLoader(fName) match {
             case Some(op) =>
               val tpe = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
-              MTermLoader.loadTerms(cInfo, args).map { case Loaded(newCInfo, operands) =>
-                Loaded(newCInfo, CApply(op, tpe, operands))
+              MTermLoader.loadTerms(cInfo, args).map { case ModifiedAndLoaded(newCInfo, operands) =>
+                ModifiedAndLoaded(newCInfo, CApply(op, tpe, operands))
               }
             case None => Right(NotThis)
           }
@@ -82,8 +84,8 @@ trait CTermsLoader { self: Scala2Reader =>
             MTermLoader(_, condArgs.head),
             StatementReader(_, args.head)
           ).flatMap {
-            case Loaded(newCInfo, (cond: MTerm) :: whenp :: Nil) =>
-              Right(Loaded(newCInfo, When(cond, whenp, EmptyMTerm)))
+            case ModifiedAndLoaded(newCInfo, (cond: MTerm) :: whenp :: Nil) =>
+              Right(ModifiedAndLoaded(newCInfo, When(cond, whenp, EmptyMTerm)))
             case _ => loadMutilpleMatchError(condArgs.head)
           }
         }
@@ -92,8 +94,8 @@ trait CTermsLoader { self: Scala2Reader =>
             WhenLoader(_, qualifier),
             StatementReader(_, args.head)
           ).flatMap {
-            case Loaded(newCInfo, (when: When) :: otherp :: Nil) =>
-              Right(Loaded(newCInfo, When(when.cond, when.whenp, otherp)))
+            case ModifiedAndLoaded(newCInfo, (when: When) :: otherp :: Nil) =>
+              Right(ModifiedAndLoaded(newCInfo, When(when.cond, when.whenp, otherp)))
             case _ => loadMutilpleMatchError(qualifier)
           }
         }
@@ -103,8 +105,8 @@ trait CTermsLoader { self: Scala2Reader =>
             MTermLoader(_, condArgs.head),
             StatementReader(_, args.head)
           ).flatMap {
-            case Loaded(newCInfo, (when: When) :: (elseCond: MTerm) :: elseThen :: Nil) =>
-              Right(Loaded(newCInfo, pushBackElseWhen(when, When(elseCond, elseThen, EmptyMTerm))))
+            case ModifiedAndLoaded(newCInfo, (when: When) :: (elseCond: MTerm) :: elseThen :: Nil) =>
+              Right(ModifiedAndLoaded(newCInfo, pushBackElseWhen(when, When(elseCond, elseThen, EmptyMTerm))))
             case _ => loadMutilpleMatchError(qualifier)
           }
         }
@@ -125,16 +127,16 @@ trait CTermsLoader { self: Scala2Reader =>
             MTermLoader(_, vArgs.head),
             MTermLoader(_, bodyArgs.head)
           ).flatMap {
-            case Loaded(newCInfo, (switch: Switch) :: v :: branchp :: Nil) =>
-              Right(Loaded(newCInfo, switch.appended(v, branchp)))
+            case ModifiedAndLoaded(newCInfo, (switch: Switch) :: v :: branchp :: Nil) =>
+              Right(ModifiedAndLoaded(newCInfo, switch.appended(v, branchp)))
             case _ => loadMutilpleMatchError(qualifier)
           }
         case Apply(Select(New(t), termNames.CONSTRUCTOR), args) if isChisel3UtilSwitchContextType(t) =>
           loadMutilple(cInfo)(
             MTermLoader(_, args.head)
           ).flatMap {
-            case Loaded(newCInfo, cond :: Nil) =>
-              Right(Loaded(newCInfo, Switch(cond, List.empty)))
+            case ModifiedAndLoaded(newCInfo, cond :: Nil) =>
+              Right(ModifiedAndLoaded(newCInfo, Switch(cond, List.empty)))
             case _ => loadMutilpleMatchError(args.head)
           }
         case _ =>
@@ -151,8 +153,8 @@ trait CTermsLoader { self: Scala2Reader =>
       if (isReturnAssert(tree)) {
         tree match {
           case Apply(Ident(TermName("_applyWithSourceLinePrintable")), args) =>
-            MTermLoader(cInfo, args.head).map { case Loaded(newCInfo, ast) =>
-              Loaded(newCInfo, Assert(ast))
+            MTermLoader(cInfo, args.head).map { case ModifiedAndLoaded(newCInfo, ast) =>
+              ModifiedAndLoaded(newCInfo, Assert(ast))
             }
           case _ => Right(NotThis)
         }
@@ -174,13 +176,13 @@ trait CTermsLoader { self: Scala2Reader =>
       tree match {
         case Apply(Select(qualifier: Apply, name), args) if isChiselLiteralType(qualifier) => {
           // 0.U(1.W)
-          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(newCInfo, litExp) =>
+          STermLoader(cInfo, qualifier.args.head).flatMap { case ModifiedAndLoaded(newCInfo, litExp) =>
             val width = SignalTypeLoader.getWidth(newCInfo, args) match {
               case k: KnownSize => k
               case _            => InferredSize
             }
             nameToSomeLitGen(name)(litExp, width) match {
-              case Some(lit) => Right(Loaded(newCInfo, lit))
+              case Some(lit) => Right(ModifiedAndLoaded(newCInfo, lit))
               case None =>
                 errorTree(tree, "Unknow name in CExp")
                 Left(Failed)
@@ -189,9 +191,9 @@ trait CTermsLoader { self: Scala2Reader =>
         }
         case Select(qualifier: Apply, name) if isChiselLiteralType(qualifier) => {
           // someInt.U without width
-          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(newCInfo, litExp) =>
+          STermLoader(cInfo, qualifier.args.head).flatMap { case ModifiedAndLoaded(newCInfo, litExp) =>
             nameToSomeLitGen(name)(litExp, InferredSize) match {
-              case Some(lit) => Right(Loaded(newCInfo, lit))
+              case Some(lit) => Right(ModifiedAndLoaded(newCInfo, lit))
               case None =>
                 errorTree(tree, "Unknow name in CExp")
                 Left(Failed)

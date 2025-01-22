@@ -12,7 +12,7 @@ trait MStatementsLoader { self: Scala2Reader =>
   }
 
   object MDefLoader extends Loader[MDef] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherSuccess[MDef] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[LRSuccess[MDef]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case _: ValDef => ValDefReader(cInfo, tr)
@@ -29,12 +29,14 @@ trait MStatementsLoader { self: Scala2Reader =>
     LRSuccess.getFirst(objs.map(f => () => f(cInfo, tree)))
   }
 
-  def loadMutilple[T](cInfo: CircuitInfo)(funcs: (CircuitInfo => LREither[T])*): LREitherLoaded[List[T]] = {
+  def loadMutilple[T](
+      cInfo: CircuitInfo
+  )(funcs: (CircuitInfo => LREither[T])*): LREitherT[ModifiedAndLoaded[List[T]]] = {
     funcs
       .foldLeft(Right(List.empty[T]): Either[LRError, List[T]]) {
         case (Right(ls), f) =>
           f(cInfo) match {
-            case Right(Loaded(_, x)) => Right(x :: ls)
+            case Right(ModifiedAndLoaded(_, x)) => Right(x :: ls)
             case Right(_) =>
               errorTree(EmptyTree, "loadMutilple")
               Left(Failed)
@@ -42,7 +44,7 @@ trait MStatementsLoader { self: Scala2Reader =>
           }
         case (Left(x), f) => Left(x)
       }
-      .map(x => Loaded(cInfo, x.reverse))
+      .map(x => ModifiedAndLoaded(cInfo, x.reverse))
   }
 
   def loadMutilpleMatchError(tree: Tree) = {

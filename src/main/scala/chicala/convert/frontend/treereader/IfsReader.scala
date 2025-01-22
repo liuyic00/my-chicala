@@ -7,14 +7,14 @@ trait IfsReader { self: Scala2Reader =>
   import global._
 
   object IfReader extends Loader[SIf] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[SIf] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SIf]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case i @ If(cond, thenp, elsep) => {
           MTermLoader.loadTerms(cInfo, List(cond, thenp, elsep)).flatMap {
-            case Loaded(newCInfo, (c: STerm) :: t :: e :: Nil) =>
+            case ModifiedAndLoaded(newCInfo, (c: STerm) :: t :: e :: Nil) =>
               val tpe = MTypeLoader.fromTpt(tpt).get
-              Right(Loaded(newCInfo, SIf(c, t, e, tpe)))
+              Right(ModifiedAndLoaded(newCInfo, SIf(c, t, e, tpe)))
             case _ => loadMutilpleMatchError(i)
           }
         }

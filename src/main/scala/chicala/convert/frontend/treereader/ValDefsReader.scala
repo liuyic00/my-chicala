@@ -8,7 +8,7 @@ trait ValDefsReader { self: Scala2Reader =>
   import global._
 
   object ValDefReader extends Loader[MDef] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherSuccess[MDef] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[LRSuccess[MDef]] = {
       val (tree, _) = passThrough(tr)
       val ValDef(mods, nameTmp, tpt: TypeTree, rhs) = tree match {
         case v: ValDef => v
@@ -31,13 +31,13 @@ trait ValDefsReader { self: Scala2Reader =>
                 )
               )
 
-            Right(Changed(cInfo.updatedEnumDefTmp(num, Some(name), Some(enumDef))))
+            Right(Modified(cInfo.updatedEnumDefTmp(num, Some(name), Some(enumDef))))
           }
           case Match(Typed(rhs, _), _) => { // STupleUnapplyDef step 1
             val num = tpt.tpe.typeArgs.length
             val tpe = STypeLoader.fromTpt(tpt).get.asInstanceOf[StTuple]
-            MTermLoader(cInfo, rhs).map { case Loaded(newCInfo, cExp) =>
-              Changed(
+            MTermLoader(cInfo, rhs).map { case ModifiedAndLoaded(newCInfo, cExp) =>
+              Modified(
                 newCInfo.updatedSUnapplyDefTmp(
                   num,
                   Some(name),
@@ -62,17 +62,17 @@ trait ValDefsReader { self: Scala2Reader =>
             val enumDef  = EnumDef(ed.names :+ name, ed.tpe)
             val newCInfo = cInfo.updatedVal(name, enumDef.tpe)
             if (num == 0)
-              Right(Loaded(newCInfo.updatedEnumDefTmp(0, None, None), enumDef))
+              Right(ModifiedAndLoaded(newCInfo.updatedEnumDefTmp(0, None, None), enumDef))
             else
-              Right(Changed(newCInfo.updatedEnumDefTmp(num, Some(tn), Some(enumDef))))
+              Right(Modified(newCInfo.updatedEnumDefTmp(num, Some(tn), Some(enumDef))))
           } else if (cInfo.sUnapplyDefTmp.nonEmpty) { // STupleUnapplyDef step 2
             val sud         = cInfo.sUnapplyDefTmp.get
             val sUnapplyDef = sud.copy(names = sud.names :+ name)
             val newCInfo    = cInfo.updatedVal(name, MTypeLoader.fromTpt(tpt).get)
             if (num == 0)
-              Right(Loaded(newCInfo.updatedSUnapplyDefTmp(0, None, None), sUnapplyDef))
+              Right(ModifiedAndLoaded(newCInfo.updatedSUnapplyDefTmp(0, None, None), sUnapplyDef))
             else
-              Right(Changed(newCInfo.updatedSUnapplyDefTmp(num, Some(tn), Some(sUnapplyDef))))
+              Right(Modified(newCInfo.updatedSUnapplyDefTmp(num, Some(tn), Some(sUnapplyDef))))
           } else
             loadNodeDef(cInfo, name, rhs, mods.isMutable)
         } else
@@ -97,7 +97,7 @@ trait ValDefsReader { self: Scala2Reader =>
             val tpe      = SignalTypeLoader.fromTpt(tpt).get
             val newCInfo = cInfo.updatedVal(name, tpe)
             val nodeDef  = NodeDef(name, tpe, EmptyMTerm, mods.isMutable)
-            Right(Loaded(newCInfo, nodeDef))
+            Right(ModifiedAndLoaded(newCInfo, nodeDef))
           case _ =>
             loadNodeDef(cInfo, name, rhs, mods.isMutable)
         }
@@ -106,16 +106,16 @@ trait ValDefsReader { self: Scala2Reader =>
         val tpe      = STypeLoader.fromTpt(tpt).get
         val newCInfo = cInfo.updatedVal(name, tpe)
         (MTermLoader(cInfo, rhs) match {
-          case Right(Loaded(_, r)) => Right(r)
-          case Left(x: LRSkip)     => Right(EmptyMTerm)
-          case Left(x: LRExit)     => Left(x)
+          case Right(ModifiedAndLoaded(_, r)) => Right(r)
+          case Left(x: LRSkip)                => Right(EmptyMTerm)
+          case Left(x: LRExit)                => Left(x)
         }).map { r =>
           val sValDef = SValDef(name, tpe, r, mods.isMutable)
           if (mods.isParamAccessor)
-            if (mods.isParameter) Loaded(newCInfo, sValDef)
-            else Changed(newCInfo)
+            if (mods.isParameter) ModifiedAndLoaded(newCInfo, sValDef)
+            else Modified(newCInfo)
           else
-            Loaded(newCInfo, sValDef)
+            ModifiedAndLoaded(newCInfo, sValDef)
         }
       }
     }
@@ -124,25 +124,25 @@ trait ValDefsReader { self: Scala2Reader =>
         cInfo: CircuitInfo,
         name: TermName,
         args: List[Tree]
-    ): LREitherLoaded[IoDef] = {
-      val sigType: LREitherLoaded[BundleDef] = args.head match {
+    ): LREitherT[ModifiedAndLoaded[IoDef]] = {
+      val sigType: LREitherT[ModifiedAndLoaded[BundleDef]] = args.head match {
         case Block(stats, expr) => BundleDefLoader(cInfo, stats.head, "")
         case a @ Apply(Select(New(tpt), termNames.CONSTRUCTOR), aparams) =>
           val bundleFullName = tpt.tpe.toString()
           val someBundleDef  = cInfo.readerInfo.bundleDefs.get(bundleFullName)
           someBundleDef.toRight(DependentClassNotDef).flatMap { bundleDef =>
-            MTermLoader.loadTerms(cInfo, aparams).flatMap { case Loaded(newCInfo, mArgs) =>
-              Right(Loaded(newCInfo, bundleDef.applyArgs(mArgs)))
+            MTermLoader.loadTerms(cInfo, aparams).flatMap { case ModifiedAndLoaded(newCInfo, mArgs) =>
+              Right(ModifiedAndLoaded(newCInfo, bundleDef.applyArgs(mArgs)))
             }
           }
         case _ => Left(Failed) // this should not happed
       }
 
-      sigType.map { case Loaded(tmpCInfo, bundleDef) =>
+      sigType.map { case ModifiedAndLoaded(tmpCInfo, bundleDef) =>
         val bundle  = bundleDef.bundle.updatedPhysical(Io)
         val newInfo = tmpCInfo.updatedVal(name, bundle)
         val ioDef   = IoDef(name, bundle)
-        Loaded(newInfo, ioDef)
+        ModifiedAndLoaded(newInfo, ioDef)
       }
     }
 
@@ -152,24 +152,24 @@ trait ValDefsReader { self: Scala2Reader =>
         func: Tree,
         args: List[Tree],
         isVar: Boolean
-    ): LREitherLoaded[WireDef] = {
+    ): LREitherT[ModifiedAndLoaded[WireDef]] = {
       if (isChisel3WireApply(func)) {
         assertError(args.length == 1, func.pos, "Should have only 1 arg in Wire()")
-        SignalTypeLoader(cInfo, args.head).map { case Loaded(nInfo, st) =>
+        SignalTypeLoader(cInfo, args.head).map { case ModifiedAndLoaded(nInfo, st) =>
           val sigType  = st.updatedPhysical(Wire)
           val newCInfo = nInfo.updatedVal(name, sigType)
-          Loaded(newCInfo, WireDef(name, sigType))
+          ModifiedAndLoaded(newCInfo, WireDef(name, sigType))
         }
       } else if (isChisel3WireInitApply(func)) {
-        MTermLoader(cInfo, args.head).map { case Loaded(nInfo, init) =>
+        MTermLoader(cInfo, args.head).map { case ModifiedAndLoaded(nInfo, init) =>
           val sigType = init.tpe.asInstanceOf[SignalType].updatedPhysical(Wire)
           val newInfo = nInfo.updatedVal(name, sigType)
           val wireDef = WireDef(name, sigType, Some(init), isVar)
-          Loaded(newInfo, wireDef)
+          ModifiedAndLoaded(newInfo, wireDef)
         }
       } else if (isChisel3VecInitDoApply(func)) {
         assertError(args.length >= 1, func.pos, "Should have at last 1 arg in VecInit()")
-        MTermLoader.loadTerms(cInfo, args).map { case Loaded(newCInfo, mArgs) =>
+        MTermLoader.loadTerms(cInfo, args).map { case ModifiedAndLoaded(newCInfo, mArgs) =>
           val init = SApply(SLib("scala.`package`.Seq.apply", StFunc), mArgs, StSeq(mArgs.head.tpe))
           val tpe = Vec(
             KnownSize.fromInt(mArgs.size),
@@ -177,7 +177,7 @@ trait ValDefsReader { self: Scala2Reader =>
             mArgs.head.tpe.asInstanceOf[SignalType]
           )
           val newInfo = newCInfo.updatedVal(name, tpe)
-          Loaded(newInfo, WireDef(name, tpe, Some(init)))
+          ModifiedAndLoaded(newInfo, WireDef(name, tpe, Some(init)))
         }
       } else {
         reporter.error(func.pos, "Unknow WireDef function")
@@ -190,20 +190,20 @@ trait ValDefsReader { self: Scala2Reader =>
         name: TermName,
         func: Tree,
         args: List[Tree]
-    ): LREitherLoaded[RegDef] = {
+    ): LREitherT[ModifiedAndLoaded[RegDef]] = {
       if (isChisel3RegApply(func)) {
         assert(args.length == 1, "should have only 1 arg in Reg()")
-        SignalTypeLoader(cInfo, args.head).map { case Loaded(nInfo, st) =>
+        SignalTypeLoader(cInfo, args.head).map { case ModifiedAndLoaded(nInfo, st) =>
           val sigType  = st.updatedPhysical(Reg)
           val newCInfo = nInfo.updatedVal(name, sigType)
-          Loaded(newCInfo, RegDef(name, sigType))
+          ModifiedAndLoaded(newCInfo, RegDef(name, sigType))
         }
       } else if (isChisel3RegInitApply(func)) {
         if (args.length == 1) {
-          MTermLoader(cInfo, args.head).map { case Loaded(_, init) =>
+          MTermLoader(cInfo, args.head).map { case ModifiedAndLoaded(_, init) =>
             val signalInfo = init.tpe.asInstanceOf[SignalType].updatedPhysical(Reg)
             val newCInfo   = cInfo.updatedVal(name, signalInfo)
-            Loaded(newCInfo, RegDef(name, signalInfo, Some(init)))
+            ModifiedAndLoaded(newCInfo, RegDef(name, signalInfo, Some(init)))
           }
         } else {
           unprocessedTree(func, s"ValDefReader.loadRegDef with ${args.size} arg")
@@ -215,10 +215,10 @@ trait ValDefsReader { self: Scala2Reader =>
         MTermLoader
           .loadTerms(cInfo, List(args.head, args.tail.head))
           .flatMap {
-            case Loaded(_, List(next, enable)) =>
+            case ModifiedAndLoaded(_, List(next, enable)) =>
               val signalInfo = next.tpe.asInstanceOf[SignalType].updatedPhysical(Reg)
               val newCInfo   = cInfo.updatedVal(name, signalInfo)
-              Right(Loaded(newCInfo, RegDef(name, signalInfo, None, Some(next), Some(enable))))
+              Right(ModifiedAndLoaded(newCInfo, RegDef(name, signalInfo, None, Some(next), Some(enable))))
             case _ => loadMutilpleMatchError(args.head)
           }
       } else {
@@ -232,11 +232,11 @@ trait ValDefsReader { self: Scala2Reader =>
         name: TermName,
         rhs: Tree,
         isVar: Boolean
-    ): LREitherLoaded[NodeDef] = {
-      MTermLoader(cInfo, rhs).map { case Loaded(newCInfo, cExp) =>
+    ): LREitherT[ModifiedAndLoaded[NodeDef]] = {
+      MTermLoader(cInfo, rhs).map { case ModifiedAndLoaded(newCInfo, cExp) =>
         val signalInfo = cExp.tpe.asInstanceOf[SignalType].updatedPhysical(Node)
         val newInfo    = newCInfo.updatedVal(name, signalInfo)
-        Loaded(newInfo, NodeDef(name, signalInfo, cExp, isVar))
+        ModifiedAndLoaded(newInfo, NodeDef(name, signalInfo, cExp, isVar))
       }
     }
 
@@ -244,7 +244,7 @@ trait ValDefsReader { self: Scala2Reader =>
         cInfo: CircuitInfo,
         name: TermName,
         args: List[Tree]
-    ): LREitherLoaded[SubModuleDef] = {
+    ): LREitherT[ModifiedAndLoaded[SubModuleDef]] = {
       args.head match {
         case Apply(Select(New(tpt), termNames.CONSTRUCTOR), args) =>
           val moduleFullName = tpt.tpe.toString()
@@ -253,9 +253,9 @@ trait ValDefsReader { self: Scala2Reader =>
             case Some(value) =>
               val ioDef = value.ioDef
               val tpe   = SubModule(moduleFullName, ioDef)
-              MTermLoader.loadTerms(cInfo, args).map { case Loaded(_, mArgs) =>
+              MTermLoader.loadTerms(cInfo, args).map { case ModifiedAndLoaded(_, mArgs) =>
                 val subModuleDef = SubModuleDef(name, tpe, mArgs)
-                Loaded(cInfo.updatedVal(name, tpe), subModuleDef)
+                ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)
               }
             case None =>
               Left(DependentClassNotDef)

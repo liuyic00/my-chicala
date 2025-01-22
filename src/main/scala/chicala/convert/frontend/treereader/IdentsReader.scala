@@ -7,14 +7,14 @@ trait IdentsReader { self: Scala2Reader =>
   import global._
 
   object IdentReader extends Loader[MTerm] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherLoaded[MTerm] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case i @ Ident(name: TermName) =>
           if (isChiselSignalType(i))
-            Right(Loaded(cInfo, SignalRef(i, cInfo.getSignalType(i))))
+            Right(ModifiedAndLoaded(cInfo, SignalRef(i, cInfo.getSignalType(i))))
           else {
-            Right(Loaded(cInfo, SIdent(name, MTypeLoader.fromTpt(tpt).get)))
+            Right(ModifiedAndLoaded(cInfo, SIdent(name, MTypeLoader.fromTpt(tpt).get)))
           }
         case _ =>
           unprocessedTree(tree, "IdentReader")
