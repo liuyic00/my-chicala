@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 make test-debug
 ./scripts/format.sh
