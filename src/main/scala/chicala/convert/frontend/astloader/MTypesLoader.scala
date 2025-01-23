@@ -1,6 +1,7 @@
 package chicala.convert.frontend
 
 import scala.tools.nsc.Global
+import scala.languageFeature.experimental.macros
 
 trait MTypesLoader { self: Scala2Reader =>
   val global: Global
@@ -22,20 +23,29 @@ trait MTypesLoader { self: Scala2Reader =>
 
   trait MTypeLoaderLib {}
 
-  object SignalTypeLoader extends Loader[SignalType] {
-    def getWidth(cInfo: CircuitInfo, args: List[Tree]): CSize = args match {
-      case Select(Apply(Select(cp, TermName("fromIntToWidth")), List(w)), TermName("W")) :: next
-          if isChisel3Package(cp) =>
-        val Right(ModifiedAndLoaded(_, ww)) = STermLoader(cInfo, w)
-        KnownSize(ww)
-      case _ => UnknownSize
+  object SignalTypeLoader extends LoadedLoader[SignalType] {
+    def getWidth(cInfo: CircuitInfo, args: List[Tree]): CSize = {
+      args match {
+        case Select(Apply(Select(cp, TermName("fromIntToWidth")), List(w)), TermName("W")) ::
+            Nil if isChisel3Package(cp) => {
+          STermLoader(cInfo, w) match {
+            case Right(Loaded(ww)) => KnownSize(ww)
+            case _ =>
+              errorTree(args.head, "SignalTypeLoader.getWidth")
+              UnknownSize
+          }
+        }
+        case _ =>
+          unprocessedTree(args.headOption.getOrElse(EmptyTree), "SignalTypeLoader.getWidth")
+          UnknownSize
+      }
     }
 
     private def getVecArgs(cInfo: CircuitInfo, args: List[Tree]): (CSize, SignalType) = {
       if (args.length == 2) {
-        val Right(ModifiedAndLoaded(_, ww))        = STermLoader(cInfo, args.head)
-        val size                                   = KnownSize(ww)
-        val Right(ModifiedAndLoaded(_, cDataType)) = SignalTypeLoader(cInfo, args.tail.head)
+        val Right(Loaded(ww))        = STermLoader(cInfo, args.head)
+        val size                     = KnownSize(ww)
+        val Right(Loaded(cDataType)) = SignalTypeLoader(cInfo, args.tail.head)
         (size, cDataType)
       } else {
         reporter.error(args.head.pos, "Unknow arg of Vec")
@@ -61,7 +71,7 @@ trait MTypesLoader { self: Scala2Reader =>
       someSignalType
     }
 
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SignalType]] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[SignalType]] = {
       val tree = passThrough(tr)._1
       tree match {
         case Apply(fun, args) =>
@@ -76,14 +86,13 @@ trait MTypesLoader { self: Scala2Reader =>
               f match {
                 /* Apply(<UInt(_)>, List(<width.W>)) */
                 case Select(Select(cp, name), TermName("apply")) if isChisel3Package(cp) =>
-                  val width = getWidth(cInfo, args)
                   name match {
-                    case TermName("UInt") => Right(ModifiedAndLoaded(cInfo, UInt.empty.updatedWidth(width)))
-                    case TermName("SInt") => Right(ModifiedAndLoaded(cInfo, SInt.empty.updatedWidth(width)))
-                    case TermName("Bool") => Right(ModifiedAndLoaded(cInfo, Bool.empty))
+                    case TermName("UInt") => Right(Loaded(UInt.empty.updatedWidth(getWidth(cInfo, args))))
+                    case TermName("SInt") => Right(Loaded(SInt.empty.updatedWidth(getWidth(cInfo, args))))
+                    case TermName("Bool") => Right(Loaded(Bool.empty))
                     case TermName("Vec") =>
                       val (size, sigType) = getVecArgs(cInfo, args)
-                      Right(ModifiedAndLoaded(cInfo, Vec(size, Node, sigType)))
+                      Right(Loaded(Vec(size, Node, sigType)))
                     case _ =>
                       unprocessedTree(f, "SignalTypeLoader #1")
                       Left(Failed)
@@ -96,8 +105,8 @@ trait MTypesLoader { self: Scala2Reader =>
                   eitherBundleDef.flatMap { bundleDef =>
                     MTermLoader
                       .loadTerms(cInfo, args)
-                      .map({ case ModifiedAndLoaded(_, mArgs) =>
-                        ModifiedAndLoaded(cInfo, bundleDef.applyArgs(mArgs).bundle)
+                      .map({ case Loaded(mArgs) =>
+                        Loaded(bundleDef.applyArgs(mArgs).bundle)
                       })
                   }
                 case _ =>
@@ -181,7 +190,7 @@ trait MTypesLoader { self: Scala2Reader =>
       if (isChiselSignalType(tr)) SignalTypeLoader.fromTpt(tr)
       else STypeLoader.fromTpt(tr)
     }
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[MType] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, LRSuccess[MType]] = {
       if (isChiselSignalType(tr))
         SignalTypeLoader(cInfo, tr)
       else

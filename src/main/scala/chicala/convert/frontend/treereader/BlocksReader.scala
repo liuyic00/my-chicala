@@ -6,8 +6,8 @@ trait BlocksReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object BlockReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SBlock]] = {
+  object BlockReader extends Reader[SBlock] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[SBlock]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Block(stats, expr) =>
@@ -15,7 +15,7 @@ trait BlocksReader { self: Scala2Reader =>
             .fromListTree(cInfo, stats :+ expr)
             .map { case ModifiedAndLoaded(newCInfo, cList) =>
               // Block not influence outside cInfo
-              ModifiedAndLoaded(cInfo, SBlock(cList, EmptyMType))
+              Loaded(SBlock(cList, EmptyMType))
             }
         case _ =>
           unprocessedTree(tree, "BlockReader")

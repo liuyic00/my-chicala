@@ -6,8 +6,8 @@ trait CTermsLoader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object ConnectLoader extends Loader[Connect] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[Connect] = {
+  object ConnectLoader extends LoadedLoader[Connect] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[Connect]] = {
       val (tree, _) = passThrough(tr)
       tree match {
         case Apply(Select(qualifier, TermName("$colon$eq")), args) if isChiselSignalType(qualifier) =>
@@ -16,16 +16,16 @@ trait CTermsLoader { self: Scala2Reader =>
           MTermLoader
             .loadTerms(cInfo, List(qualifier, args.head))
             .flatMap {
-              case ModifiedAndLoaded(newCInfo, left :: right :: Nil) =>
-                Right(ModifiedAndLoaded(newCInfo, Connect(left, right)))
+              case Loaded(left :: right :: Nil) =>
+                Right(Loaded(Connect(left, right)))
               case _ => loadMutilpleMatchError(qualifier)
             }
-        case _ => Right(NotThis)
+        case _ => Left(NotThis)
       }
     }
   }
-  object CApplyLoader extends Loader[CApply] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[CApply] = {
+  object CApplyLoader extends LoadedLoader[CApply] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[CApply]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Apply(Select(qualifier, name), args) if isChiselSignalType(qualifier) =>
@@ -41,8 +41,8 @@ trait CTermsLoader { self: Scala2Reader =>
               }
               MTermLoader
                 .loadTerms(cInfo, qualifier :: args)
-                .map { case ModifiedAndLoaded(newCInfo, operands) =>
-                  ModifiedAndLoaded(newCInfo, CApply(op, tpe, operands))
+                .map { case Loaded(operands) =>
+                  Loaded(CApply(op, tpe, operands))
                 }
             case None =>
               unprocessedTree(tr, s"CApplyLoader `${opName}`")
@@ -54,17 +54,17 @@ trait CTermsLoader { self: Scala2Reader =>
           COpLoader(fName) match {
             case Some(op) =>
               val tpe = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
-              MTermLoader.loadTerms(cInfo, args).map { case ModifiedAndLoaded(newCInfo, operands) =>
-                ModifiedAndLoaded(newCInfo, CApply(op, tpe, operands))
+              MTermLoader.loadTerms(cInfo, args).map { case Loaded(operands) =>
+                Loaded(CApply(op, tpe, operands))
               }
-            case None => Right(NotThis)
+            case None => Left(NotThis)
           }
         }
       }
     }
   }
-  object WhenLoader extends Loader[When] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[When] = {
+  object WhenLoader extends LoadedLoader[When] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[When]] = {
       def pushBackElseWhen(when: When, elseWhen: When): When = when match {
         case When(cond, whenp, otherp, true) =>
           When(
@@ -81,62 +81,62 @@ trait CTermsLoader { self: Scala2Reader =>
       tree match {
         case Apply(Apply(cwa, condArgs), args) if isChisel3WhenApply(cwa) => {
           loadMutilple(cInfo)(
-            MTermLoader(_, condArgs.head),
+            MTermLoader.must(_, condArgs.head),
             StatementReader(_, args.head)
           ).flatMap {
-            case ModifiedAndLoaded(newCInfo, (cond: MTerm) :: whenp :: Nil) =>
-              Right(ModifiedAndLoaded(newCInfo, When(cond, whenp, EmptyMTerm)))
+            case Loaded((cond: MTerm) :: whenp :: Nil) =>
+              Right(Loaded(When(cond, whenp, EmptyMTerm)))
             case _ => loadMutilpleMatchError(condArgs.head)
           }
         }
         case Apply(Select(qualifier, TermName("otherwise")), args) => {
           loadMutilple(cInfo)(
-            WhenLoader(_, qualifier),
+            WhenLoader.must(_, qualifier),
             StatementReader(_, args.head)
           ).flatMap {
-            case ModifiedAndLoaded(newCInfo, (when: When) :: otherp :: Nil) =>
-              Right(ModifiedAndLoaded(newCInfo, When(when.cond, when.whenp, otherp)))
+            case Loaded((when: When) :: otherp :: Nil) =>
+              Right(Loaded(When(when.cond, when.whenp, otherp)))
             case _ => loadMutilpleMatchError(qualifier)
           }
         }
         case Apply(Apply(Select(qualifier, TermName("elsewhen")), condArgs), args) => {
           loadMutilple(cInfo)(
-            WhenLoader(_, qualifier),
+            WhenLoader.must(_, qualifier),
             MTermLoader(_, condArgs.head),
             StatementReader(_, args.head)
           ).flatMap {
-            case ModifiedAndLoaded(newCInfo, (when: When) :: (elseCond: MTerm) :: elseThen :: Nil) =>
-              Right(ModifiedAndLoaded(newCInfo, pushBackElseWhen(when, When(elseCond, elseThen, EmptyMTerm))))
+            case Loaded((when: When) :: (elseCond: MTerm) :: elseThen :: Nil) =>
+              Right(Loaded(pushBackElseWhen(when, When(elseCond, elseThen, EmptyMTerm))))
             case _ => loadMutilpleMatchError(qualifier)
           }
         }
-        case _ => Right(NotThis)
+        case _ => Left(NotThis)
       }
     }
   }
 
-  object SwitchLoader extends Loader[Switch] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[Switch] = {
+  object SwitchLoader extends LoadedLoader[Switch] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[Switch]] = {
       val (tree, tpt) = passThrough(tr)
-      if (!isChisel3UtilSwitchContextType(tpt)) return Right(NotThis)
+      if (!isChisel3UtilSwitchContextType(tpt)) return Left(NotThis)
 
       tree match {
         case Apply(Apply(Select(qualifier, TermName("is")), vArgs), bodyArgs) =>
           loadMutilple(cInfo)(
-            SwitchLoader(_, qualifier),
-            MTermLoader(_, vArgs.head),
-            MTermLoader(_, bodyArgs.head)
+            SwitchLoader.must(_, qualifier),
+            MTermLoader.must(_, vArgs.head),
+            MTermLoader.must(_, bodyArgs.head)
           ).flatMap {
-            case ModifiedAndLoaded(newCInfo, (switch: Switch) :: v :: branchp :: Nil) =>
-              Right(ModifiedAndLoaded(newCInfo, switch.appended(v, branchp)))
+            case Loaded((switch: Switch) :: v :: branchp :: Nil) =>
+              Right(Loaded(switch.appended(v, branchp)))
             case _ => loadMutilpleMatchError(qualifier)
           }
         case Apply(Select(New(t), termNames.CONSTRUCTOR), args) if isChisel3UtilSwitchContextType(t) =>
           loadMutilple(cInfo)(
             MTermLoader(_, args.head)
           ).flatMap {
-            case ModifiedAndLoaded(newCInfo, cond :: Nil) =>
-              Right(ModifiedAndLoaded(newCInfo, Switch(cond, List.empty)))
+            case Loaded(cond :: Nil) =>
+              Right(Loaded(Switch(cond, List.empty)))
             case _ => loadMutilpleMatchError(args.head)
           }
         case _ =>
@@ -147,22 +147,22 @@ trait CTermsLoader { self: Scala2Reader =>
     }
   }
 
-  object AssertLoader extends Loader[Assert] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[Assert] = {
+  object AssertLoader extends LoadedLoader[Assert] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[Assert]] = {
       val (tree, _) = passThrough(tr)
       if (isReturnAssert(tree)) {
         tree match {
           case Apply(Ident(TermName("_applyWithSourceLinePrintable")), args) =>
-            MTermLoader(cInfo, args.head).map { case ModifiedAndLoaded(newCInfo, ast) =>
-              ModifiedAndLoaded(newCInfo, Assert(ast))
+            MTermLoader(cInfo, args.head).map { case Loaded(ast) =>
+              Loaded(Assert(ast))
             }
-          case _ => Right(NotThis)
+          case _ => Left(NotThis)
         }
-      } else Right(NotThis)
+      } else Left(NotThis)
     }
   }
 
-  object LitLoader extends Loader[Lit] {
+  object LitLoader extends LoadedLoader[Lit] {
     private def nameToSomeLitGen(name: Name): (STerm, CSize) => Option[Lit] = {
       name.toString() match {
         case "U" => (litExp, width) => Some(Lit(litExp, UInt(width, Node, Undirect)))
@@ -171,18 +171,18 @@ trait CTermsLoader { self: Scala2Reader =>
         case _   => (litExp, width) => None
       }
     }
-    def apply(cInfo: CircuitInfo, tr: Tree): LREither[Lit] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[Lit]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Apply(Select(qualifier: Apply, name), args) if isChiselLiteralType(qualifier) => {
           // 0.U(1.W)
-          STermLoader(cInfo, qualifier.args.head).flatMap { case ModifiedAndLoaded(newCInfo, litExp) =>
-            val width = SignalTypeLoader.getWidth(newCInfo, args) match {
+          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
+            val width = SignalTypeLoader.getWidth(cInfo, args) match {
               case k: KnownSize => k
               case _            => InferredSize
             }
             nameToSomeLitGen(name)(litExp, width) match {
-              case Some(lit) => Right(ModifiedAndLoaded(newCInfo, lit))
+              case Some(lit) => Right(Loaded(lit))
               case None =>
                 errorTree(tree, "Unknow name in CExp")
                 Left(Failed)
@@ -191,16 +191,16 @@ trait CTermsLoader { self: Scala2Reader =>
         }
         case Select(qualifier: Apply, name) if isChiselLiteralType(qualifier) => {
           // someInt.U without width
-          STermLoader(cInfo, qualifier.args.head).flatMap { case ModifiedAndLoaded(newCInfo, litExp) =>
+          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
             nameToSomeLitGen(name)(litExp, InferredSize) match {
-              case Some(lit) => Right(ModifiedAndLoaded(newCInfo, lit))
+              case Some(lit) => Right(Loaded(lit))
               case None =>
                 errorTree(tree, "Unknow name in CExp")
                 Left(Failed)
             }
           }
         }
-        case _ => Right(NotThis)
+        case _ => Left(NotThis)
       }
     }
   }

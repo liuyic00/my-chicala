@@ -6,12 +6,12 @@ trait MatchsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object MatchReader {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SMatch]] = {
+  object MatchReader extends Reader[SMatch] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[SMatch]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Match(selector, cases) =>
-          MTermLoader(cInfo, selector).flatMap { case ModifiedAndLoaded(tcInfo, mTerm) =>
+          MTermLoader(cInfo, selector).flatMap { case Loaded(mTerm) =>
             val tpe = MTypeLoader.fromTpt(tpt).get
 
             val cs = loadMutilple(cInfo)(cases.map({ case CaseDef(pat, guard, body) =>

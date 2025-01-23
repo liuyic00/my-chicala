@@ -32,16 +32,18 @@ trait Scala2Reader
     with ChiselAstCheck
     with Printer {
 
-  sealed trait LRError
+  sealed trait LRAllLeft
+
+  sealed trait LRWrong extends LRAllLeft
+  case object NotThis  extends LRWrong
+
+  sealed trait LRError             extends LRAllLeft
   sealed trait LRExit              extends LRError
   sealed trait LRSkip              extends LRError
   case object Failed               extends LRSkip
   case object DependentClassNotDef extends LRExit
 
-  sealed trait LRResult[+A]
-  sealed trait NotThis extends LRResult[Nothing]
-  case object NotThis  extends NotThis
-  sealed trait LRSuccess[+A] extends LRResult[A] {
+  sealed trait LRSuccess[+A] extends {
     def mapValue[B](f: A => B): LRSuccess[B]
   }
   sealed trait LRModified[+A] extends LRSuccess[A] {
@@ -61,17 +63,14 @@ trait Scala2Reader
     def mapValue[B](f: A => B): ModifiedAndLoaded[B] = ModifiedAndLoaded(cInfo, f(value))
   }
 
-  type LREither[+A]  = Either[LRError, LRResult[A]]
-  type LREitherT[+T] = Either[LRError, T]
-
   object LRSuccess {
-    def getFirst[T](gens: List[() => LREither[T]]): LREither[T] = {
+    def getFirst[T, CC[T]](gens: List[() => Either[LRAllLeft, CC[T]]]): Either[LRAllLeft, CC[T]] = {
       gens match {
-        case Nil => Right(NotThis)
+        case Nil => Left(NotThis)
         case head :: tail =>
           head() match {
-            case Right(NotThis) => getFirst(tail)
-            case x              => x
+            case Left(NotThis) => getFirst(tail)
+            case x             => x
           }
       }
     }

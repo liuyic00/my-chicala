@@ -6,17 +6,17 @@ trait FunctionsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object FunctionReader extends Loader[SFunction] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[ModifiedAndLoaded[SFunction]] = {
+  object FunctionReader extends Reader[SFunction] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[SFunction]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Function(vparams, body) =>
           StatementReader
             .fromListTree(cInfo, vparams)
-            .asInstanceOf[LREitherT[ModifiedAndLoaded[List[MValDef]]]]
+            .asInstanceOf[Either[LRError, ModifiedAndLoaded[List[MValDef]]]]
             .flatMap { case ModifiedAndLoaded(newCInfo, vps) =>
-              MTermLoader(newCInfo, body).map { case ModifiedAndLoaded(_, b) =>
-                ModifiedAndLoaded(cInfo, SFunction(vps, b))
+              MTermLoader(newCInfo, body).map { case Loaded(b) =>
+                Loaded(SFunction(vps, b))
               }
             }
         case _ =>

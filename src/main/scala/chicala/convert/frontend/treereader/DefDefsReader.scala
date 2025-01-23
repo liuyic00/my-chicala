@@ -6,8 +6,8 @@ trait DefDefsReader { self: Scala2Reader =>
   val global: Global
   import global._
 
-  object DefDefReader extends Loader[MDef] {
-    def apply(cInfo: CircuitInfo, tr: Tree): LREitherT[LRSuccess[MDef]] = {
+  object DefDefReader extends Reader[MDef] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, LRModified[MDef]] = {
       val tree = passThrough(tr)._1
       tree match {
         case d @ DefDef(mods, nameTmp, tparams, vparamss, tpt: TypeTree, rhs) => {
@@ -20,30 +20,33 @@ trait DefDefsReader { self: Scala2Reader =>
                 TermName(name.toString().dropRight(4))
               else name
             assertError(cInfo.contains(valName), d.pos, "accessor of val should record in cInfo")
-            return Left(Failed)
-          }
-
-          val Right(ModifiedAndLoaded(newCInfo, vpss: List[List[MValDef]])) = vparamssReader(cInfo, vparamss)
-
-          if (name == termNames.CONSTRUCTOR) {
+            Left(Failed)
+          } else if (name == termNames.CONSTRUCTOR) {
             // constructor of this class
-            val vps = vpss.flatten.asInstanceOf[List[SValDef]]
-            Right(Modified(cInfo.updatedWithReaderInfo(newCInfo).updatedParams(vps)))
+            vparamssReader(cInfo, vparamss).map {
+              case ModifiedAndLoaded(_, vpss: List[List[MValDef]]) => {
+                val vps = vpss.flatten.asInstanceOf[List[SValDef]]
+                Modified(cInfo.updatedParams(vps))
+              }
+            }
           } else {
             // function
-            StatementReader(newCInfo, rhs).flatMap {
-              case Modified(cInfo) =>
-                errorTree(rhs, "DefDefReader")
-                Left(Failed)
-              case ModifiedAndLoaded(_, defp) => {
-                assertError(defp.nonEmpty, rhs.pos, s"function $name should have body")
-                val tpe = MTypeLoader.fromTpt(tpt).get
-                Right(
-                  ModifiedAndLoaded(
-                    cInfo.updatedFunc(name, tpe),
-                    SDefDef(name, vpss, tpe, defp)
+            vparamssReader(cInfo, vparamss).flatMap { case ModifiedAndLoaded(newCInfo, vpss: List[List[MValDef]]) =>
+              StatementReader(newCInfo, rhs).flatMap {
+                case x: LRLoaded[_] => {
+                  val defp = x.value
+                  assertError(defp.nonEmpty, rhs.pos, s"function $name should have body")
+                  val tpe = MTypeLoader.fromTpt(tpt).get
+                  Right(
+                    ModifiedAndLoaded(
+                      cInfo.updatedFunc(name, tpe),
+                      SDefDef(name, vpss, tpe, defp)
+                    )
                   )
-                )
+                }
+                case _ =>
+                  errorTree(rhs, "DefDefReader")
+                  Left(Failed)
               }
             }
           }
@@ -56,10 +59,15 @@ trait DefDefsReader { self: Scala2Reader =>
     }
   }
 
+  /** Read vparamss of a function.
+    *
+    * Params will `updatedVal` in `cInfo`. However, the CONSTRUCTOR need
+    * `updatedParams` outside manually.
+    */
   protected def vparamssReader(
       cInfo: CircuitInfo,
       vparamss: List[List[ValDef]]
-  ): LREitherT[ModifiedAndLoaded[List[List[MValDef]]]] = {
+  ): Either[LRError, ModifiedAndLoaded[List[List[MValDef]]]] = {
     vparamss
       .foldLeft(Right(ModifiedAndLoaded(cInfo, List.empty[List[MValDef]]))) {
         case (Right(ModifiedAndLoaded(cf, ls)), vps) =>

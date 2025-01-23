@@ -15,38 +15,40 @@ trait CClassDefsLoader { self: Scala2Reader =>
             () => BundleDefLoader(tree, pkg)
           )
         )
-        .flatMap {
-          case ModifiedAndLoaded(_, cClassDef) =>
-            Right(cClassDef)
-          case _ =>
+        .map(_.value)
+        .left
+        .map {
+          case NotThis =>
             unprocessedTree(tree, "CClassDefLoader")
-            Left(Failed)
+            Failed
+          case x: LRError => x
         }
     }
   }
 
   object ModuleDefLoader {
-    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): LREither[ModuleDef] = tree match {
-      // only Class inherits chisel3.Module directly
-      case ClassDef(mods, name, tparams, Template(parents, self, body)) if parents.exists {
-            case Select(Ident(TermName("chisel3")), TypeName("Module")) => true
-            case _                                                      => false
-          } =>
-        StatementReader.fromListTree(CircuitInfo(name), body).map { case ModifiedAndLoaded(cInfo, cBody) =>
-          ModifiedAndLoaded(CircuitInfo.empty, ModuleDef(name, cInfo.params, cBody, pkg))
-        }
-      case _ => Right(NotThis)
-    }
+    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): Either[LRAllLeft, Loaded[ModuleDef]] =
+      tree match {
+        // only Class inherits chisel3.Module directly
+        case ClassDef(mods, name, tparams, Template(parents, self, body)) if parents.exists {
+              case Select(Ident(TermName("chisel3")), TypeName("Module")) => true
+              case _                                                      => false
+            } =>
+          StatementReader.fromListTree(CircuitInfo(name), body).map { case ModifiedAndLoaded(cInfo, cBody) =>
+            Loaded(ModuleDef(name, cInfo.params, cBody, pkg))
+          }
+        case _ => Left(NotThis)
+      }
   }
 
   object BundleDefLoader {
-    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): LREitherT[ModifiedAndLoaded[BundleDef]] = {
+    def apply(tree: Tree, pkg: String)(implicit readerInfo: ReaderInfo): Either[LRError, Loaded[BundleDef]] = {
       val name = tree.asInstanceOf[ClassDef].name
-      BundleDefLoader(CircuitInfo(name), tree, pkg).map { case ModifiedAndLoaded(cInfo, bundleDef) =>
-        ModifiedAndLoaded(CircuitInfo.empty, bundleDef)
+      BundleDefLoader(CircuitInfo(name), tree, pkg).map { case Loaded(bundleDef) =>
+        Loaded(bundleDef)
       }
     }
-    def apply(cInfo: CircuitInfo, tree: Tree, pkg: String): LREitherT[ModifiedAndLoaded[BundleDef]] = {
+    def apply(cInfo: CircuitInfo, tree: Tree, pkg: String): Either[LRError, Loaded[BundleDef]] = {
       tree match {
         // only Class inherits chisel3.Bundle directly
         case ClassDef(mods, name, tparams, Template(parents, self, body)) if parents.exists {
@@ -56,7 +58,7 @@ trait CClassDefsLoader { self: Scala2Reader =>
           var vps = List.empty[SValDef]
           val eitherInfoSignals =
             body.foldLeft(
-              Right(ModifiedAndLoaded(cInfo, Map.empty)): LREitherT[ModifiedAndLoaded[Map[TermName, SignalType]]]
+              Right(ModifiedAndLoaded(cInfo, Map.empty)): Either[LRError, ModifiedAndLoaded[Map[TermName, SignalType]]]
             ) {
               case (Right(ModifiedAndLoaded(nowCInfo, nowSet)), tr) => {
                 tr match {
@@ -68,16 +70,19 @@ trait CClassDefsLoader { self: Scala2Reader =>
                     val name = nameTmp.stripSuffix(" ")
                     if (isChiselSignalType(tpt)) {
                       SignalTypeLoader(nowCInfo, rhs) match {
-                        case Right(ModifiedAndLoaded(cf, sigType)) =>
-                          Right(ModifiedAndLoaded(cf, nowSet + (name -> sigType)))
+                        case Right(Loaded(sigType)) =>
+                          Right(ModifiedAndLoaded(nowCInfo, nowSet + (name -> sigType)))
                         case Left(f: LRExit) => Left(f)
                         case Left(_: LRSkip) => Right(ModifiedAndLoaded(nowCInfo, nowSet))
                       }
                     } else {
                       ValDefReader(nowCInfo, tr) match {
                         case Right(x: LRModified[_]) => Right(ModifiedAndLoaded(x.cInfo, nowSet))
-                        case Left(f: LRExit)         => Left(f)
-                        case Left(_: LRSkip)         => Right(ModifiedAndLoaded(nowCInfo, nowSet))
+                        case Right(Loaded(_)) =>
+                          errorTree(tr, "BundleDefLoader")
+                          Right(ModifiedAndLoaded(nowCInfo, nowSet))
+                        case Left(f: LRExit) => Left(f)
+                        case Left(_: LRSkip) => Right(ModifiedAndLoaded(nowCInfo, nowSet))
                       }
                     }
                   case _ =>
@@ -87,8 +92,8 @@ trait CClassDefsLoader { self: Scala2Reader =>
               case (Left(f), tr) => Left(f)
             }
 
-          eitherInfoSignals.map { case ModifiedAndLoaded(newCInfo, signals) =>
-            ModifiedAndLoaded(newCInfo, BundleDef(name, vps, Bundle(Node, signals), pkg))
+          eitherInfoSignals.map { case ModifiedAndLoaded(_, signals) =>
+            Loaded(BundleDef(name, vps, Bundle(Node, signals), pkg))
           }
         }
       }
