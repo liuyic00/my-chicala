@@ -99,15 +99,14 @@ trait MTypesLoader { self: Scala2Reader =>
                   }
                 /* Apply(<new SomeBundle(_)>, List(<args>)) */
                 case Select(New(tpt), termNames.CONSTRUCTOR) =>
-                  val bundleFullName  = tpt.tpe.toString()
-                  val eitherBundleDef = cInfo.readerInfo.bundleDefs.get(bundleFullName).toRight(DependentClassNotDef)
-
+                  val bundleFullName = tpt.tpe.toString()
+                  val eitherBundleDef = cInfo.readerInfo.bundleDefs
+                    .get(bundleFullName)
+                    .toRight(DependentClassNotDef)
                   eitherBundleDef.flatMap { bundleDef =>
                     MTermLoader
                       .loadTerms(cInfo, args)
-                      .map({ case Loaded(mArgs) =>
-                        Loaded(bundleDef.applyArgs(mArgs).bundle)
-                      })
+                      .map(_.mapValue(bundleDef.applyArgs(_).bundle))
                   }
                 case _ =>
                   unprocessedTree(f, "SignalTypeLoader #2")

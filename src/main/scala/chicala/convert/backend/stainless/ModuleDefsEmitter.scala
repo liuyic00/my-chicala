@@ -63,13 +63,18 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
       private val moduleRunName =
         s"${moduleName.head.toLower}${moduleName.tail}Run"
 
-      private val ioDef = moduleDef.ioDef
-      private val inputSignals = ioDef.tpe
-        .flatten(ioDef.name.toString())
-        .filter { case (name, tpe) => tpe.isInput }
-      private val outputSignals = ioDef.tpe
-        .flatten(ioDef.name.toString())
-        .filter { case (name, tpe) => tpe.isOutput }
+      private val ioDefs = moduleDef.ioDefs
+      private val inputSignals = ioDefs.flatMap(ioDef =>
+        ioDef.tpe
+          .flatten(ioDef.name.toString())
+          .filter { case (name, tpe) => tpe.isInput }
+      )
+
+      private val outputSignals = ioDefs.flatMap(ioDef =>
+        ioDef.tpe
+          .flatten(ioDef.name.toString())
+          .filter { case (name, tpe) => tpe.isOutput }
+      )
 
       private val regDefs = moduleDef.regDefs
       private val (regSignals, regInits) = {

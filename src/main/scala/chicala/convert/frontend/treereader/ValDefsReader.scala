@@ -129,26 +129,11 @@ trait ValDefsReader { self: Scala2Reader =>
         name: TermName,
         args: List[Tree]
     ): Either[LRError, ModifiedAndLoaded[IoDef]] = {
-      val sigType: Either[LRError, Loaded[BundleDef]] = args.head match {
-        case Block(stats, expr) => BundleDefLoader(cInfo, stats.head, "")
-        case a @ Apply(Select(New(tpt), termNames.CONSTRUCTOR), aparams) =>
-          val bundleFullName = tpt.tpe.toString()
-          val someBundleDef  = cInfo.readerInfo.bundleDefs.get(bundleFullName)
-          someBundleDef.toRight(DependentClassNotDef).flatMap { bundleDef =>
-            MTermLoader.loadTerms(cInfo, aparams).flatMap { case Loaded(mArgs) =>
-              Right(Loaded(bundleDef.applyArgs(mArgs)))
-            }
-          }
-        case _ =>
-          errorTree(args.head, "loadIoDef")
-          Left(Failed)
-      }
-
-      sigType.map { case Loaded(bundleDef) =>
-        val bundle = bundleDef.bundle.updatedPhysical(Io)
+      SignalTypeLoader(cInfo, args.head).map { case Loaded(sType) =>
+        val t = sType.updatedPhysical(Io)
         ModifiedAndLoaded(
-          cInfo.updatedVal(name, bundle),
-          IoDef(name, bundle)
+          cInfo.updatedVal(name, t),
+          IoDef(name, t)
         )
       }
     }
@@ -260,8 +245,8 @@ trait ValDefsReader { self: Scala2Reader =>
           val someModuleDef  = cInfo.readerInfo.moduleDefs.get(moduleFullName)
           someModuleDef match {
             case Some(value) =>
-              val ioDef = value.ioDef
-              val tpe   = SubModule(moduleFullName, ioDef)
+              val ioDefs = value.ioDefs
+              val tpe    = SubModule(moduleFullName, ioDefs)
               MTermLoader.loadTerms(cInfo, args).map { case Loaded(mArgs) =>
                 val subModuleDef = SubModuleDef(name, tpe, mArgs)
                 ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)

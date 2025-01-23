@@ -85,17 +85,25 @@ trait CircuitInfos { self: Scala2Reader =>
       tree match {
         case Ident(termName: TermName)                   => getVal(termName).get
         case Select(This(this.name), termName: TermName) => getVal(termName).get
-        case Select(qualifier, TermName("io")) if isChiselModuleType(qualifier) =>
-          val termName = qualifier match {
+        case Select(qualifier, termName: TermName) if isChiselModuleType(qualifier) =>
+          val moduleName = qualifier match {
             case Select(This(this.name), name: TermName) => name
             case Ident(name: TermName)                   => name
             case _ =>
               reportError(qualifier.pos, "Unknown structure in CircuitInfo.getMType #1")
               TermName("")
           }
-          val tpe       = vals(termName).asInstanceOf[SubModule]
+          val tpe       = vals(moduleName).asInstanceOf[SubModule]
           val moduleDef = readerInfo.moduleDefs(tpe.fullName)
-          moduleDef.ioDef.tpe
+          moduleDef.ioDefs.find(_.name == termName) match {
+            case Some(ioDef) => ioDef.tpe
+            case None =>
+              errorTree(
+                tree,
+                s"TermName $termName not found under $moduleName(${tpe.fullName}) [CircuitInfo_getMType_3]"
+              )
+              SignalType.empty
+          }
         case Select(qualifier, termName: TermName) => select(getSignalType(qualifier), termName)
         case _ => {
           reportError(tree.pos, "Unknown structure in CircuitInfo.getMType #2")

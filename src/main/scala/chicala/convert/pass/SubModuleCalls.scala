@@ -47,12 +47,13 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
       val SubModuleDef(name, tpe, args) = subModuleDef
       val subModuleName                 = name
       val subModuleType                 = tpe
-      val ioName                        = tpe.ioDef.name
-      val ioType                        = tpe.ioDef.tpe
+      val ioDefs                        = tpe.ioDefs
+      // val ioName                        = tpe.ioDef.name
+      // val ioType                        = tpe.ioDef.tpe
 
       def flattenName(name: String) = s"${subModuleName}_${name}"
 
-      val signals       = ioType.flatten(ioName.toString())
+      val signals       = ioDefs.flatMap(ioDef => ioDef.tpe.flatten(ioDef.name.toString()))
       val inputSignals  = signals.filter({ case (name, tpe) => tpe.isInput })
       val outputSignals = signals.filter({ case (name, tpe) => tpe.isOutput })
 
@@ -113,7 +114,9 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
               .reduce(_ ++ _)
         }
       }
-      val replaceMap = getReplaceMap(ioType, List(subModuleName, ioName))
+      val replaceMap = ioDefs
+        .map(ioDef => getReplaceMap(ioDef.tpe, List(subModuleName, ioDef.name)))
+        .reduce(_ ++ _)
 
       (ioSigDefs, subModuleRun, replaceMap)
     }

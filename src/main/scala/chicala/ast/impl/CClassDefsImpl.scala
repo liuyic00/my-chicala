@@ -9,17 +9,13 @@ trait CClassDefsImpl { self: ChicalaAst =>
   import global._
 
   trait ModuleDefImpl { self: ModuleDef =>
-    def ioDef: IoDef = {
-      val ioDefs = body.collect { case x: IoDef => x }
-      ioDefs match {
-        case Nil =>
+    def ioDefs: List[IoDef] = {
+      val ios = body.collect { case x: IoDef => x }
+      ios.isEmpty match {
+        case true =>
           reportError(NoPosition, "ModuleDef should has a IoDef in body")
-          IoDef(TermName(""), SignalType.empty)
-        case head :: Nil =>
-          head
-        case head :: next =>
-          reportError(NoPosition, "ModuleDef should has only one IoDef in body")
-          head
+          List(IoDef(TermName(""), SignalType.empty))
+        case false => ios
       }
     }
     def regDefs: List[RegDef] = body.collect { case x: RegDef => x }
