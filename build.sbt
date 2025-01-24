@@ -22,8 +22,9 @@ lazy val testcase = (project in file("testcase"))
     name := "testcase",
     resolvers += Resolver.mavenLocal,
     libraryDependencies ++= Seq(
-      "edu.berkeley.cs" %% "chisel3"    % chiselVersion,
-      "edu.berkeley.cs" %% "chiseltest" % chiselTestVersion % "test"
+      "edu.berkeley.cs" %% "chisel3"           % chiselVersion,
+      "com.ovhcloud"    %% "sv2chisel-helpers" % "0.5.0",
+      "edu.berkeley.cs" %% "chiseltest"        % chiselTestVersion % "test"
     ),
     scalacOptions ++= Seq(
       "-language:reflectiveCalls",
