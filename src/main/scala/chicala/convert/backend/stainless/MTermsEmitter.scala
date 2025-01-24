@@ -136,29 +136,12 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
       private def assertCode(assert: Assert): String = {
         s"Assert(${assert.exp.toCode})"
       }
-      private val symbolList = List(
-        "$plus"    -> "+",
-        "$minus"   -> "-",
-        "$times"   -> "*",
-        "$div"     -> "/",
-        "$percent" -> "%",
-        "$eq"      -> "=",
-        "$greater" -> ">",
-        "$less"    -> "<",
-        "$bang"    -> "!",
-        "$amp"     -> "&",
-        "$bar"     -> "|",
-        "$colon"   -> ":"
-      )
       private def sApplyCode(sApply: SApply): String = {
         val args = sApply.args.map(_.toCode).mkString(", ")
         sApply.fun match {
           case SSelect(fromTmp, nameTmp, tpe) =>
             val from = fromTmp.toCode
-            val name = symbolList
-              .foldLeft(nameTmp.toString())({ case (s, (a, b)) =>
-                s.replace(a, b)
-              })
+            val name = nameTmp.decode.toString()
 
             if (
               "+ - * / % < > == >= <= != << && || -> ++ :+ until"
