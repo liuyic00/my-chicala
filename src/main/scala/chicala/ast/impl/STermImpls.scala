@@ -31,6 +31,8 @@ trait STermImpls { self: ChicalaAst =>
   trait SSelectImpl { self: SSelect =>
     // FIXME
     val relatedIdents = RelatedIdents.empty
+
+    override def toString(): String = s"SSelect(${from},${name.normal},${tpe})"
   }
 
   trait SBlockImpl { self: SBlock =>

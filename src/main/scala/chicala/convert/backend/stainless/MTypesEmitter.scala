@@ -21,7 +21,7 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
             case Vec(_, _, tparam) =>
               if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
-            case x => TODO(s"$x")
+            case x => TODO("Code", x)
           }
         case sType: SType =>
           sType match {
@@ -38,9 +38,9 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
             case StUnit => "Unit"
 
             case StWrapped("Nothing") => "Nothing"
-            case x                    => TODO(s"SType $x")
+            case x                    => TODO("Code", s"SType($x)")
           }
-        case EmptyMType => TODO("EmptyMType")
+        case EmptyMType => TODO("Code", "EmptyMType")
       }
     }
     implicit class SignalTypeEmitter(tpe: SignalType) {
@@ -54,7 +54,7 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
             s"Seq.fill(${size.width.toCode})(${tparam.toCode_empty})"
           else
             s"List.fill(${size.width.toCode})(${tparam.toCode_empty})"
-        case _ => TODO(s"$tpe")
+        case _ => TODO("toCode_empty", tpe)
       }
       def toCode_regNextInit(name: String): String = s"var ${name}_next = regs.${name}"
     }

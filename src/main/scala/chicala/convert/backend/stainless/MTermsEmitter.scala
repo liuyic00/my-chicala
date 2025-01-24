@@ -26,7 +26,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         case s: SFunction    => s.toCodeLines.toCode
         case s: SIf          => s"(${s.toCodeLines.toCode})"
         case SIdent(name, _) => name.toString()
-        case _               => TODO(s"Code ${mTerm}")
+        case _               => TODO("Code", mTerm)
       }
       def toCodeLines: CodeLines = mTerm match {
         case _: SignalRef | _: CApply | _: Assert | _: STuple | _: SLiteral | _: SApply | _: SIdent | _: SSelect |
@@ -41,7 +41,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         case s: SFunction    => sFunctionCL(s)
         case s: SAssign      => sAssignCL(s)
         case EmptyMTerm      => CodeLines("()")
-        case _               => CodeLines(TODO(s"CL ${mTerm}"))
+        case _               => CodeLines(TODO("CL", mTerm))
       }
 
       private def signalRefCode(signalRef: SignalRef, isLeftSide: Boolean = false): String = {
@@ -50,7 +50,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
             case Ident(name)             => name.toString()
             case Select(This(_), name)   => name.toString()
             case Select(qualifier, name) => s"${getNameFromTree(qualifier)}_${name}"
-            case _                       => TODO(s"signalRefCode ${tree}")
+            case _                       => TODO("signalRefCode", tree)
           }
         }
         val baseName = getNameFromTree(signalRef.name)
@@ -114,7 +114,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
               s"${op}(List(${operands.mkString(", ")}))"
             else
               s"${op}(${operands.mkString(", ")})"
-          case _ => TODO(s"${cApply}")
+          case _ => TODO("cApplyCode", cApply)
         }
       }
       private def litCode(lit: Lit): String = {
@@ -178,8 +178,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                 case "forall"   => s"${from}.forall(${args})"
                 case "+:"       => s"(${args} +: ${from})"
                 case "update"   => s"${from} = ${from}.updated(${args})"
-                case _ =>
-                  s"(${from} TODO(sApplyCode SSelect ${name}) ${args})"
+                case _          => TODO("sApplyCode", s"SSelect(${from}.${name})(${args})")
               }
             }
           case SLib(name, tpe) =>
@@ -206,20 +205,20 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
 
               case "scala.Array.fill" => if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
-              case _ => TODO(s"sApplyCode SLib ${name}(${args})")
+              case _ => TODO("sApplyCode", s"SLib(${name})(${args})", sApply.tpe)
             }
           case SIdent(name, tpe) =>
             s"${name.toString()}(${args})"
           case s: SApply =>
             if (args.startsWith("ClassTag")) s"${s.toCode}"
             else s"${s.toCode}(${args})"
-          case _ => TODO(s"sApplyCode ${sApply.fun.toCode}(${args})")
+          case _ => TODO("sApplyCode", s"${sApply.fun.toCode}(${args})")
         }
 
       }
       private def sSelectCode(sSelect: SSelect): String = {
         val from = sSelect.from.toCode
-        val name = sSelect.name.toString()
+        val name = sSelect.name.normal
 
         (
           Map(
@@ -241,7 +240,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
               case "bitLength"    => s"bitLength(${from})"
               case "indices"      => s"(0 until ${from}.length)"
               case "toIndexedSeq" => s"${from}"
-              case _              => TODO(s"SSelect ${name} ${sSelect}")
+              case _              => TODO("sSelectCode", s"${from}.${name}")
             }
           )
       }
@@ -252,7 +251,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         sLib.name match {
           case "scala.`package`.Nil" => "Nil"
 
-          case _ => TODO(s"sLibCode ${sLib}")
+          case _ => TODO("sLibCode", sLib)
         }
       }
       private def sLiteralCode(sLiteral: SLiteral): String = {

@@ -76,19 +76,40 @@ trait Printer extends Format {
   }
 
   def reportWaining(pos: Position, msg: String, tracesExtDrop: Int = 0) = {
-    reporter.warning(pos, msg)
-    stackTraces.drop(3 + tracesExtDrop).map(println(_))
+    reporter.warning(
+      pos,
+      s"""${msg}
+         |  ${stackTraces.drop(3 + tracesExtDrop).take(10).mkString("\n  ")}
+         |  ...""".stripMargin
+    )
   }
   def reportError(pos: Position, msg: String, tracesExtDrop: Int = 0) = {
-    reporter.error(pos, msg)
-    stackTraces.drop(3 + tracesExtDrop).map(println(_))
+    reporter.error(
+      pos,
+      s"""${msg}
+         |  ${stackTraces.drop(3 + tracesExtDrop).take(10).mkString("\n  ")}
+         |  ...""".stripMargin
+    )
   }
 
   object TODO {
-    def apply(msg: String): String = {
-      val m = s"TODO(${msg})"
-      reportWaining(NoPosition, m)
+    def apply(from: String, msg: Any, tpe: Any): String = {
+      val m = s"TODO($from, $msg, $tpe)"
+      reportWaining(NoPosition, m, 1)
       m
+    }
+    def apply(from: String, msg: Any): String = {
+      val m = s"TODO($from, $msg)"
+      reportWaining(NoPosition, m, 1)
+      m
+    }
+  }
+
+  implicit class NormalTermName(tn: TermName) {
+    def normal: String = {
+      val s = tn.toString
+      if (s == "package") s"`${s}`"
+      else s
     }
   }
 }
