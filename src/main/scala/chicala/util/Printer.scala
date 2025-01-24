@@ -40,7 +40,7 @@ trait Printer extends Format {
   }
 
   def errorTree(tree: Tree, msg: String) = {
-    val slicedTraces = stackTraces.drop(1).reduce(_ + "\n  " + _)
+    val slicedTraces = stackTraces.drop(3).take(10).reduce(_ + "\n  " + _)
     reporter.error(
       tree.pos,
       s"""${msg}:
@@ -49,7 +49,9 @@ trait Printer extends Format {
         |tree AST:
         |  ${showFormattedRaw(tree).replace("\n", "\n  ")}
         |stackTrace:
-        |  ${slicedTraces}""".stripMargin
+        |  ${slicedTraces}
+        |  ...
+        |source code:""".stripMargin
     )
   }
 

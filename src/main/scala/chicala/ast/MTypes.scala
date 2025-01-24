@@ -67,6 +67,7 @@ trait MTypes extends MTypeImpls with CTypeImpls with STypeImpls { self: ChicalaA
   object UInt extends UIntObjImpl
   object SInt extends SIntObjImpl
   object Bool extends BoolObjImpl
+  object Vec  extends VecObjImpl
 
   object KnownSize extends KnownSizeObjImpl
 

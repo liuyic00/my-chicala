@@ -197,4 +197,7 @@ trait CTypeImpls { self: ChicalaAst =>
   trait BoolObjImpl {
     def empty = Bool(Node, Undirect)
   }
+  trait VecObjImpl {
+    def empty(tparam: SignalType = SignalType.empty) = Vec(UnknownSize, Node, SignalType.empty)
+  }
 }

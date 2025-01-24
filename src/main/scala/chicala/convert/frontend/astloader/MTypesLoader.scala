@@ -53,21 +53,24 @@ trait MTypesLoader { self: Scala2Reader =>
       }
     }
 
-    def fromString(tpe: String): Option[SignalType] = {
-      tpe match {
+    def fromType(tpe: Type): Option[SignalType] = {
+      tpe.typeConstructor.toString() match {
         case "chisel3.UInt" => Some(UInt.empty)
         case "chisel3.SInt" => Some(SInt.empty)
         case "chisel3.Bool" => Some(Bool.empty)
         case "chisel3.Data" => Some(UInt.empty)
-        case _              => None
+        case "chisel3.Vec"  => Some(Vec.empty(fromType(tpe.typeArgs.head).get))
+        case _: String =>
+          if (tpe.toString().endsWith(".type")) fromType(tpe.erasure)
+          else None
       }
     }
 
     def fromTpt(tree: Tree): Option[SignalType] = {
       val tpe            = autoTypeErasure(tree)
-      val someSignalType = fromString(tpe.toString())
+      val someSignalType = fromType(tpe)
       if (someSignalType.isEmpty)
-        reporter.error(tree.pos, s"unknow data type `${tpe}` in SignalTypeLoader.fromTpt")
+        errorTree(tree, s"unknow data type `${tpe}` in SignalTypeLoader.fromTpt")
       someSignalType
     }
 
