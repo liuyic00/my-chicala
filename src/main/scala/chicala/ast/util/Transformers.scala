@@ -24,20 +24,32 @@ trait Transformers { self: ChicalaAst =>
         case Assert(exp) => Assert(transformMTerm(exp))
         case Switch(cond, branchs) =>
           Switch(transformMTerm(cond), branchs.map(x => (transformMTerm(x._1), transform(x._2))))
-        case s: SubModuleRun => s
+        case SubModuleRun(name, inputRefs, outputNames, moduleType, inputSignals, outputSignals) =>
+          SubModuleRun(
+            name,
+            inputRefs.map(transformStatementT),
+            outputNames.map(transformTermName),
+            transformTypeT(moduleType),
+            inputSignals.map({ case (n, t) => (n, transformTypeT(t)) }),
+            outputSignals.map({ case (n, t) => (n, transformTypeT(t)) })
+          )
 
         // STerm
         case SApply(fun, args, tpe)   => SApply(transformSTerm(fun), args.map(transformMTerm(_)), transformType(tpe))
-        case SSelect(from, name, tpe) => SSelect(transformMTerm(from), name, transformType(tpe))
+        case SSelect(from, name, tpe) => SSelect(transformMTerm(from), transformTermName(name), transformType(tpe))
         case SBlock(body, tpe)        => SBlock(body.map(transform(_)), transformType(tpe))
         case SLiteral(value, tpe)     => SLiteral(value, transformType(tpe))
-        case SIdent(name, tpe)        => SIdent(name, transformType(tpe))
+        case SIdent(name, tpe)        => SIdent(transformTermName(name), transformType(tpe))
         case SIf(cond, thenp, elsep, tpe) =>
           SIf(transformSTerm(cond), transformMTerm(thenp), transformMTerm(elsep), transformType(tpe))
         case SMatch(selector, cases, tpe) =>
           SMatch(transformMTerm(selector), cases.map(transformSCaseDef(_)), transformType(tpe))
         case SCaseDef(tupleNames, casep, tpe) =>
-          SCaseDef(tupleNames.map(x => (x._1, transformType(x._2))), transformMTerm(casep), transformType(tpe))
+          SCaseDef(
+            tupleNames.map(x => (transformTermName(x._1), transformType(x._2))),
+            transformMTerm(casep),
+            transformType(tpe)
+          )
         case STuple(args, tpe) => STuple(args.map(transformMTerm(_)), transformStTuple(tpe))
 
         case SLib(name, tpe)          => SLib(name, transformSType(tpe))
@@ -47,30 +59,39 @@ trait Transformers { self: ChicalaAst =>
         case EmptyMTerm => EmptyMTerm
 
         // CValDef
-        case SubModuleDef(name, tpe, args) => SubModuleDef(name, tpe, args.map(transformMTerm(_)))
+        case SubModuleDef(name, tpe, args) =>
+          SubModuleDef(transformTermName(name), transformTypeT(tpe), args.map(transformMTerm(_)))
 
-        case IoDef(name, tpe) => IoDef(name, transformSignalType(tpe))
+        case IoDef(name, tpe) => IoDef(transformTermName(name), transformTypeT(tpe))
         case WireDef(name, tpe, someInit, isVar) =>
-          WireDef(name, transformSignalType(tpe), someInit.map(transformMTerm(_)), isVar)
+          WireDef(transformTermName(name), transformTypeT(tpe), someInit.map(transformStatementT), isVar)
         case RegDef(name, tpe, someInit, someNext, someEnable) =>
           RegDef(
-            name,
-            transformSignalType(tpe),
-            someInit.map(transformMTerm(_)),
-            someNext.map(transformMTerm(_)),
-            someEnable.map(transformMTerm(_))
+            transformTermName(name),
+            transformTypeT(tpe),
+            someInit.map(transformStatementT),
+            someNext.map(transformStatementT),
+            someEnable.map(transformStatementT)
           )
-        case NodeDef(name, tpe, rhs, isVar) => NodeDef(name, transformSignalType(tpe), transformMTerm(rhs), isVar)
+        case NodeDef(name, tpe, rhs, isVar) =>
+          NodeDef(transformTermName(name), transformTypeT(tpe), transformStatementT(rhs), isVar)
 
         // SValDef
-        case SValDef(name, tpe, rhs, isVar) => SValDef(name, transformSType(tpe), transformMTerm(rhs), isVar)
+        case SValDef(name, tpe, rhs, isVar) =>
+          SValDef(transformTermName(name), transformTypeT(tpe), transformStatementT(rhs), isVar)
 
         // other Def
-        case EnumDef(names, tpe)          => EnumDef(names, transformUInt(tpe))
-        case SUnapplyDef(names, rhs, tpe) => SUnapplyDef(names, transformMTerm(rhs), transformStTuple(tpe))
+        case EnumDef(names, tpe) => EnumDef(names.map(transformTermName), transformTypeT(tpe))
+        case SUnapplyDef(names, rhs, tpe) =>
+          SUnapplyDef(names.map(transformTermName), transformStatementT(rhs), transformTypeT(tpe))
 
         case SDefDef(name, vparamss, tpe, defp) =>
-          SDefDef(name, vparamss.map(_.map(transformMValDef(_))), transformType(tpe), transform(defp))
+          SDefDef(
+            transformTermName(name),
+            vparamss.map(_.map(transformStatementT)),
+            transformType(tpe),
+            transform(defp)
+          )
       }
     }
     def transformStatementT[T <: MStatement](statement: T): T = transform(statement).asInstanceOf[T]
@@ -101,5 +122,7 @@ trait Transformers { self: ChicalaAst =>
     def transformUInt(uInt: UInt): UInt                         = transformType(uInt).asInstanceOf[UInt]
     def transformStTuple(stTuple: StTuple): StTuple             = transformType(stTuple).asInstanceOf[StTuple]
     def transformSType(sType: SType): SType                     = transformType(sType).asInstanceOf[SType]
+
+    def transformTermName(termName: TermName): TermName = termName
   }
 }
