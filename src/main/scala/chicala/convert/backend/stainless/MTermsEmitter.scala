@@ -18,6 +18,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         case c: CApply       => cApplyCode(c)
         case l: Lit          => litCode(l)
         case a: Assert       => assertCode(a)
+        case g: GenCType     => g.tpe.toCode_empty
         case s: SApply       => sApplyCode(s)
         case s: SSelect      => sSelectCode(s)
         case s: STuple       => sTupleCode(s)
@@ -93,6 +94,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
           case AsUInt    => ".asUInt"
           case AsSInt    => ".asSInt"
           case AsBool    => ".asBool"
+          case AsTypeOf  => ".asTypeOf"
           // CUtilOp
           case Mux       => "Mux"
           case MuxLookup => "MuxLookup"

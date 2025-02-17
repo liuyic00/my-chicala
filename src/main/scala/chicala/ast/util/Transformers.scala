@@ -19,6 +19,8 @@ trait Transformers { self: ChicalaAst =>
 
         case Connect(left, expr) => Connect(transformMTerm(left), transformMTerm(expr))
 
+        case GenCType(tpe) => GenCType(transformTypeT(tpe))
+
         case When(cond, whenp, otherp, hasElseWhen) =>
           When(transformMTerm(cond), transform(whenp), transform(otherp), hasElseWhen)
         case Assert(exp) => Assert(transformMTerm(exp))

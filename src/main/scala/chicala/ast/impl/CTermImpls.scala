@@ -66,6 +66,10 @@ trait CTermImpls { self: ChicalaAst =>
     }
   }
 
+  trait GenCTypeImpl { self: GenCType =>
+    val relatedIdents = RelatedIdents.used(tpe.usedVal)
+  }
+
   trait WhenImpl { self: When =>
     val tpe = EmptyMType
     val relatedIdents: RelatedIdents = {

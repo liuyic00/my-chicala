@@ -22,6 +22,8 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
 
   case class Connect(left: MTerm, expr: MTerm) extends CTerm with ConnectImpl
 
+  case class GenCType(tpe: SignalType) extends CTerm with GenCTypeImpl
+
   case class When(
       val cond: MTerm,
       val whenp: MStatement,

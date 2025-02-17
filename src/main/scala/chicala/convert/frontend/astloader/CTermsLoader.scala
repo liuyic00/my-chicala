@@ -28,38 +28,55 @@ trait CTermsLoader { self: Scala2Reader =>
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[CApply]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
-        case Apply(Select(qualifier, name), args) if isChiselSignalType(qualifier) =>
-          val opName = name.toString()
-          COpLoader(opName) match {
-            case Some(op) =>
-              val tpe = MTypeLoader.fromTpt(tpt).get match {
-                case StSeq(tparam: SignalType) => Vec(InferredSize, Node, tparam.setInferredWidth)
-                case x: SignalType             => x.setInferredWidth
-                case x =>
-                  errorTree(tpt, s"Not a processable MType `${x}`")
-                  SignalType.empty
-              }
-              MTermLoader
-                .loadTerms(cInfo, qualifier :: args)
-                .map { case Loaded(operands) =>
-                  Loaded(CApply(op, tpe, operands))
-                }
-            case None =>
-              unprocessedTree(tr, s"CApplyLoader `${opName}`")
-              Left(Failed)
-          }
-        case a @ Apply(fun, args) => {
+        case Apply(fun, args) => {
           val (f, _) = passThrough(fun)
-          val fName  = f.toString()
-          COpLoader(fName) match {
-            case Some(op) =>
-              val tpe = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
-              MTermLoader.loadTerms(cInfo, args).map { case Loaded(operands) =>
-                Loaded(CApply(op, tpe, operands))
+          f match {
+            case Select(qualifier, name) if isChiselSignalType(qualifier) => {
+              val opName = name.toString()
+              COpLoader(opName) match {
+                case Some(op) =>
+                  val tpe = MTypeLoader.fromTpt(tpt).get match {
+                    case StSeq(tparam: SignalType) => Vec(InferredSize, Node, tparam.setInferredWidth)
+                    case x: SignalType             => x.setInferredWidth
+                    case x =>
+                      errorTree(tpt, s"Not a processable MType `${x}`")
+                      SignalType.empty
+                  }
+                  op match {
+                    case AsTypeOf =>
+                      MTermLoader(cInfo, qualifier).flatMap { case Loaded(operand) =>
+                        SignalTypeLoader(cInfo, args.head).map(
+                          _.mapValue(signalType => CApply(op, tpe, List(operand, GenCType(signalType))))
+                        )
+                      }
+                    case _ =>
+                      MTermLoader
+                        .loadTerms(cInfo, qualifier :: args)
+                        .map { case Loaded(operands) =>
+                          Loaded(CApply(op, tpe, operands))
+                        }
+                  }
+                case None =>
+                  unprocessedTree(tr, s"CApplyLoader `${opName}`")
+                  Left(Failed)
               }
-            case None => Left(NotThis)
+            }
+            case _ => {
+              val fName = f.toString()
+              COpLoader(fName) match {
+                case Some(op) =>
+                  val tpe = SignalTypeLoader.fromTpt(tpt).get.setInferredWidth
+                  MTermLoader.loadTerms(cInfo, args).map { case Loaded(operands) =>
+                    Loaded(CApply(op, tpe, operands))
+                  }
+                case None => Left(NotThis)
+              }
+            }
+
           }
+
         }
+        case _ => Left(NotThis)
       }
     }
   }

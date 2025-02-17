@@ -36,9 +36,10 @@ trait COpsLoader { self: Scala2Reader =>
       "last"  -> VecLast,
 
       //
-      "do_asUInt" -> AsUInt,
-      "do_asSInt" -> AsSInt,
-      "do_asBool" -> AsBool,
+      "do_asUInt"   -> AsUInt,
+      "do_asSInt"   -> AsSInt,
+      "do_asBool"   -> AsBool,
+      "do_asTypeOf" -> AsTypeOf,
 
       // CUtilOp
       "chisel3.Mux.do_apply"         -> Mux,
@@ -49,8 +50,7 @@ trait COpsLoader { self: Scala2Reader =>
     )
 
     def apply(opName: String): Option[COp] = {
-      if (nameToObj.contains(opName)) Some(nameToObj(opName))
-      else None
+      nameToObj.get(opName)
     }
   }
 }
