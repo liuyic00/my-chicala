@@ -42,20 +42,24 @@ trait CTermsLoader { self: Scala2Reader =>
                       errorTree(tpt, s"Not a processable MType `${x}`")
                       SignalType.empty
                   }
-                  op match {
+                  val someOperands = op match {
                     case AsTypeOf =>
                       MTermLoader(cInfo, qualifier).flatMap { case Loaded(operand) =>
                         SignalTypeLoader(cInfo, args.head).map(
-                          _.mapValue(signalType => CApply(op, tpe, List(operand, GenCType(signalType))))
+                          _.mapValue(signalType => List(operand, GenCType(signalType)))
                         )
                       }
                     case _ =>
                       MTermLoader
                         .loadTerms(cInfo, qualifier :: args)
-                        .map { case Loaded(operands) =>
-                          Loaded(CApply(op, tpe, operands))
-                        }
                   }
+                  someOperands.map(_.mapValue(operands => {
+                    val inferredType = op match {
+                      case _: TypeNotChanged => operands.head.tpe.asInstanceOf[SignalType]
+                      case _                 => tpe
+                    }
+                    CApply(op, inferredType, operands)
+                  }))
                 case None =>
                   unprocessedTree(tr, s"CApplyLoader `${opName}`")
                   Left(Failed)

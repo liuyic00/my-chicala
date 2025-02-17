@@ -9,10 +9,12 @@ trait COps { self: ChicalaAst =>
   // operators
   sealed abstract class COp
 
+  sealed trait TypeNotChanged extends COp
+
   sealed abstract class CFrontOp extends COp
-  case object LogiNot            extends CFrontOp // `!a`
-  case object Not                extends CFrontOp // ~a
-  case object Negative           extends CFrontOp // -a
+  case object LogiNot            extends CFrontOp                     // `!a`
+  case object Not                extends CFrontOp with TypeNotChanged // ~a
+  case object Negative           extends CFrontOp                     // -a
 
   sealed abstract class CBinaryOp extends COp
 
@@ -20,11 +22,11 @@ trait COps { self: ChicalaAst =>
   case object Minus    extends CBinaryOp // -
   case object Multiply extends CBinaryOp // `*`
 
-  case object And    extends CBinaryOp // &
-  case object Or     extends CBinaryOp // |
-  case object Xor    extends CBinaryOp // ^
-  case object LShift extends CBinaryOp // <<
-  case object RShift extends CBinaryOp // >>
+  case object And    extends CBinaryOp with TypeNotChanged // &
+  case object Or     extends CBinaryOp with TypeNotChanged // |
+  case object Xor    extends CBinaryOp with TypeNotChanged // ^
+  case object LShift extends CBinaryOp                     // <<
+  case object RShift extends CBinaryOp                     // >>
 
   case object Equal     extends CBinaryOp // ===
   case object NotEqual  extends CBinaryOp // =/=
