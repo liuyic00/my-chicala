@@ -16,6 +16,7 @@ object ChicalaPlugin {
 object ChicalaConfig {
   var simulation = false
   var whitelist  = List.empty[String]
+  var useVecOnly = false
 }
 
 class ChicalaPlugin(val global: Global) extends Plugin {
@@ -46,6 +47,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
           .toList
         inform("chicala whitelist:")
         ChicalaConfig.whitelist.foreach(s => inform(" " + s))
+      } else if (option == "useVecOnly") {
+        ChicalaConfig.useVecOnly = true
       } else {
         error("Option not understood: " + option)
       }
@@ -58,6 +61,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Set emit mode, for simulation or not. [false]
        |  -P:chicala:whitelist:<package.class>;<package.class>;...
        |                               Only modules in the whitelist will be processed, not set to process all modules. [not set]
+       |  -P:chicala:useVecOnly
+       |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`. [false]
        |""".stripMargin
   )
 }

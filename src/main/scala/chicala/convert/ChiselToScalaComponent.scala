@@ -112,6 +112,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                       LiteralPropagation,
                       RegEnableApply,
                       SubModuleCall,
+                      UseVecOnly,
                       ChicalaPeek(packageDir, "beforSort"),
                       DependencySort,
                       ChicalaPeek(packageDir, "sorted")
@@ -120,7 +121,11 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                   sorted
                 case b: BundleDef =>
                   readerInfo = readerInfo.addedBundleDef(b)
-                  b
+                  val passed = RunChicalaPass(
+                    b,
+                    List(UseVecOnly)
+                  )
+                  passed
               }
 
               sortedCClassDef match {

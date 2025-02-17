@@ -188,7 +188,9 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
 
               case "scala.Array.fill" => if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
-              case _ => TODO("sApplyCode", s"SLib(${name})(${args})", sApply.tpe)
+              case s if s.startsWith("chicala.lib.helper.") => s"${s}(${args})"
+              case _ =>
+                TODO("sApplyCode", s"SLib(${name})(${args})", sApply.tpe)
             }
           case SIdent(name, tpe) =>
             s"${name.toString()}(${args})"
@@ -264,15 +266,10 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                 val expr = connect.expr.toCodeLines
                 tpe match {
                   case Vec(_, _, t) =>
-                    // s"${left} = ".concatLastLine(expr).concatLastLine(s": ${tpe.toCode}")
-                    CodeLines(
-                      s"(0 until ${left}.length)",
-                      s"  .zip(${expr.toCode})",
-                      if (ChicalaConfig.simulation)
-                        s"  .foreach { case (i, s) => ${left} = ${left}.updated[${t.toCode}, Seq[${t.toCode}]](i, ${left}(i) := s)}"
-                      else
-                        s"  .foreach { case (i, s) => ${left} = ${left}.updated[${t.toCode}, List[${t.toCode}]](i, ${left}(i) := s)}"
-                    )
+                    if (ChicalaConfig.simulation)
+                      CodeLines(s"${left} = chicala.lib.helper.Vec.connectSeq(${left}, ${expr.toCode})")
+                    else
+                      CodeLines(s"${left} = chicala.lib.helper.Vec.connectList(${left}, ${expr.toCode})")
                   case _ =>
                     if (expr.lines.head.startsWith("if"))
                       CodeLines.warpToOneLine(

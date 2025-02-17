@@ -132,12 +132,15 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
                   CodeLines(s"${name}.width == ${width.width.toCode}")
                 case Bool(_, _) => CodeLines.empty
                 case Vec(size: KnownSize, _, tpe) =>
-                  CodeLines(s"${name}.length == ${size.width.toCode}") ++
-                    (tpe match {
-                      case UInt(width: KnownSize, _, _) =>
-                        CodeLines(s"${name}.forall(_.width == ${width.width.toCode})")
-                      case _ => CodeLines.empty
-                    })
+                  CodeLines(s"${name}.length == ${size.width.toCode}").concatLastLine(
+                    {
+                      val t = signalRequire("_", tpe)
+                      if (t.isEmpty) CodeLines.empty
+                      else
+                        CodeLines(" &&") ++
+                          t.wrappedToOneLineBy(s"${name}.forall(", ")")
+                    }
+                  )
                 case _ => CodeLines(s"// Unknown size ${name}")
               }
             case _ => CodeLines(s"FIXME(${name})")
@@ -149,8 +152,9 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
         val requires = {
           val tmp = signals
             .map({ case (name, tpe) => signalRequire(name, tpe) })
-            .toCodeLines
-            .enddedWithExceptLast(" &&")
+            .filterNot(_.isEmpty)
+            .reduceOption((l, r) => l.concatLastLine(CodeLines(" &&") ++ r))
+            .getOrElse(CodeLines.empty)
           if (tmp.isEmpty) CodeLines("true") else tmp
         }
 

@@ -20,6 +20,7 @@ trait ChicalaPassCollecttion
     with LiteralPropagations
     with RegEnableApplys
     with SubModuleCalls
+    with UseVecOnlys
     with ChicalaPeeks {
   self: ChicalaAst =>
 }

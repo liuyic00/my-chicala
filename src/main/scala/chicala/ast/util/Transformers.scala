@@ -73,14 +73,28 @@ trait Transformers { self: ChicalaAst =>
           SDefDef(name, vparamss.map(_.map(transformMValDef(_))), transformType(tpe), transform(defp))
       }
     }
-    def transformMTerm(mTerm: MTerm): MTerm             = transform(mTerm).asInstanceOf[MTerm]
-    def transformSTerm(sTerm: STerm): STerm             = transform(sTerm).asInstanceOf[STerm]
-    def transformSCaseDef(sCaseDef: SCaseDef): SCaseDef = transform(sCaseDef).asInstanceOf[SCaseDef]
-    def transformMValDef(mValDef: MValDef): MValDef     = transform(mValDef).asInstanceOf[MValDef]
+    def transformStatementT[T <: MStatement](statement: T): T = transform(statement).asInstanceOf[T]
+    def transformMTerm(mTerm: MTerm): MTerm                   = transform(mTerm).asInstanceOf[MTerm]
+    def transformSTerm(sTerm: STerm): STerm                   = transform(sTerm).asInstanceOf[STerm]
+    def transformSCaseDef(sCaseDef: SCaseDef): SCaseDef       = transform(sCaseDef).asInstanceOf[SCaseDef]
+    def transformMValDef(mValDef: MValDef): MValDef           = transform(mValDef).asInstanceOf[MValDef]
 
     def transformType(mType: MType): MType = {
-      mType
+      mType match {
+        case Bundle(physical, signals) =>
+          Bundle(
+            physical,
+            signals.map({ case (termName, signalType) =>
+              (termName, transformTypeT(signalType))
+            })
+          )
+        case Vec(size, physical, tparam) =>
+          Vec(size, physical, transformTypeT(tparam))
+        case _ => mType
+      }
     }
+
+    def transformTypeT[T <: MType](tpe: T): T = transformType(tpe).asInstanceOf[T]
 
     def transfromGroundType(groundType: GroundType): GroundType = transformType(groundType).asInstanceOf[GroundType]
     def transformSignalType(signalType: SignalType): SignalType = transformType(signalType).asInstanceOf[SignalType]
