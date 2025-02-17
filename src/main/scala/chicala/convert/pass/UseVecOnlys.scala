@@ -27,8 +27,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
     object useVecOnlyTransformer extends Transformer {
       override def transform(mStatement: MStatement): MStatement = {
         mStatement match {
-          case cApply: CApply // (op, tpe, operands)
-              =>
+          case cApply: CApply => {
             val newCApply = super.transform(mStatement).asInstanceOf[CApply]
             if (
               cApply.operands
@@ -39,6 +38,11 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
               val op = newCApply.op
               val someHelperName = op match {
                 case VecSelect | VecTake | Mux | AsSInt => Left(newCApply)
+                case AsTypeOf =>
+                  if (newCApply.tpe == newCApply.operands.head.tpe)
+                    Left(newCApply.operands.head)
+                  else
+                    Left(newCApply)
                 case AsUInt =>
                   newCApply.operands.head.tpe match {
                     case _: Vec => Left(newCApply.operands.head)
@@ -88,6 +92,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
             } else {
               newCApply
             }
+          }
           case Lit(litExp, tpe: UInt) =>
             SApply(
               SLib("chicala.lib.helper.BoolVec.Lit", StFunc),

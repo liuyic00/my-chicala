@@ -15,7 +15,7 @@ trait Transformers { self: ChicalaAst =>
         // CTerm
         case Lit(litExp, tpe)          => Lit(transformSTerm(litExp), transfromGroundType(tpe))
         case SignalRef(name, tpe)      => SignalRef(name, transformSignalType(tpe))
-        case CApply(op, tpe, operands) => CApply(op, transformSignalType(tpe), operands.map(transformMTerm(_)))
+        case CApply(op, tpe, operands) => CApply(op, transformTypeT(tpe), operands.map(transformStatementT))
 
         case Connect(left, expr) => Connect(transformMTerm(left), transformMTerm(expr))
 
@@ -37,7 +37,8 @@ trait Transformers { self: ChicalaAst =>
           )
 
         // STerm
-        case SApply(fun, args, tpe)   => SApply(transformSTerm(fun), args.map(transformMTerm(_)), transformType(tpe))
+        case SApply(fun, args, tpe) =>
+          SApply(transformStatementT(fun), args.map(transformStatementT(_)), transformType(tpe))
         case SSelect(from, name, tpe) => SSelect(transformMTerm(from), transformTermName(name), transformType(tpe))
         case SBlock(body, tpe)        => SBlock(body.map(transform(_)), transformType(tpe))
         case SLiteral(value, tpe)     => SLiteral(value, transformType(tpe))

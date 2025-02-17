@@ -13,6 +13,7 @@ trait SelectsReader { self: Scala2Reader =>
       "chisel3.util.log2Ceil.apply",
       "chisel3.util.log2Floor.apply",
       "chisel3.util.log2Up.apply",
+      "chisel3.VecInit.do_tabulate",
       //
       "scala.Array.fill",
       "scala.`package`.Seq.apply",
@@ -22,7 +23,9 @@ trait SelectsReader { self: Scala2Reader =>
       //
       "scala.Predef.intWrapper",
       "scala.Predef.ArrowAssoc",
-      "scala.Predef.refArrayOps"
+      "scala.Predef.refArrayOps",
+      // sv2chisel helpers
+      "sv2chisel.helpers.vecconvert.`package`.vecToSubwords"
     )
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)

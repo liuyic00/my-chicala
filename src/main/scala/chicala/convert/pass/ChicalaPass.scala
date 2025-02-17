@@ -21,6 +21,7 @@ trait ChicalaPassCollecttion
     with RegEnableApplys
     with SubModuleCalls
     with UseVecOnlys
+    with Sv2ChiselSimplifys
     with ChicalaPeeks {
   self: ChicalaAst =>
 }
