@@ -314,7 +314,10 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         branchs.reduceRight((a, b) => a.concatLastLine(" else ".concatLastLine(b)))
       }
       private def subModuleRunCL(subModuleRun: SubModuleRun): CodeLines = {
-        val Select(t, n)   = subModuleRun.name.asInstanceOf[Select]
+        val n = subModuleRun.name match {
+          case Select(_, n) => n
+          case Ident(n)     => n
+        }
         val moduelFullName = subModuleRun.moduleType.fullName
         val inputs = CodeLines.warpToOneLine(
           s"${moduelFullName}Inputs(",

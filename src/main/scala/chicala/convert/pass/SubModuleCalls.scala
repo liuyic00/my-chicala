@@ -20,16 +20,20 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
     }
 
     def subModuleCall(moduleDef: ModuleDef): ModuleDef = {
-      moduleDef.copy(body = expandTopList(moduleDef.body)(moduleDef.name))
+      moduleDef.copy(body = expandTopList(moduleDef.body, false)(moduleDef.name))
     }
 
-    def expandTopList(body: List[MStatement])(implicit moduleName: TypeName): List[MStatement] = {
+    def expandTopList(
+        body: List[MStatement],
+        isFuncTop: Boolean
+    )(implicit moduleName: TypeName): List[MStatement] = {
       var repMap = Map.empty[MStatement, MStatement]
       body
         .map({
           Replacer(repMap)(_) match {
             case s @ SubModuleDef(name, tpe, args) =>
-              val (ioSigDefs, subModuleRun, newRepMap) = expand(s)
+              val (ioSigDefs, subModuleRun, newRepMap) =
+                expand(s, if (isFuncTop) None else Some(moduleName))
               repMap = repMap ++ newRepMap
               (s :: ioSigDefs) :+ subModuleRun
             case x =>
@@ -42,8 +46,13 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
     }
 
     private def expand(
-        subModuleDef: SubModuleDef
-    )(implicit moduleName: TypeName): (List[MStatement], SubModuleRun, Map[MStatement, MStatement]) = {
+        subModuleDef: SubModuleDef,
+        selectFromModule: Option[TypeName]
+    ): (List[MStatement], SubModuleRun, Map[MStatement, MStatement]) = {
+      def optionSelectThis(name: TermName) = selectFromModule match {
+        case Some(moduleName) => Select(This(moduleName), name)
+        case None             => Ident(name)
+      }
       val SubModuleDef(name, tpe, args) = subModuleDef
       val subModuleName                 = name
       val subModuleType                 = tpe
@@ -67,7 +76,7 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
 
       val inputRefs = inputSignals.map({ case (name, tpe) =>
         SignalRef(
-          Select(This(moduleName), flattenName(name)),
+          optionSelectThis(TermName(flattenName(name))),
           tpe.updatedPhysical(Wire).updatedDriction(Undirect)
         )
       })
@@ -77,7 +86,7 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
       })
 
       val subModuleRun = SubModuleRun(
-        Select(This(moduleName), subModuleName),
+        optionSelectThis(subModuleName),
         inputRefs,
         outputNames,
         subModuleType,
@@ -88,7 +97,7 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
       def selectIt(selectPath: List[TermName]): (List[Tree], String) = {
         val selects = selectPath match {
           case head :: next =>
-            List(Select(This(moduleName), head), Ident(head))
+            List(optionSelectThis(head), Ident(head)) // only need one?
               .map(x => next.foldLeft(x)((x, y) => Select(x, y)))
           case Nil => List.empty
         }
@@ -105,7 +114,7 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
             selects
               .map(x =>
                 SignalRef(x, tpe)
-                  -> SignalRef(Select(This(moduleName), flattenName), newType)
+                  -> SignalRef(optionSelectThis(TermName(flattenName)), newType)
               )
               .toMap
           case Bundle(physical, signals) =>
@@ -125,15 +134,15 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
       var pullOutDefs: List[MStatement] = List.empty
 
       override def transform(mStatement: MStatement): MStatement = mStatement match {
-        case d @ SDefDef(_, _, _, defp) => d.copy(defp = expandTopSBlockOrOther(defp))
-        case f @ SFunction(_, funcp)    => f.copy(funcp = expandTopSBlockOrOther(funcp).asInstanceOf[MTerm])
+        case d @ SDefDef(_, _, _, defp) => d.copy(defp = expandTopSBlockOrOther(defp, true))
+        case f @ SFunction(_, funcp)    => f.copy(funcp = expandTopSBlockOrOther(funcp, true).asInstanceOf[MTerm])
         case b @ SBlock(body, tpe)      => b.copy(body = expandSubList(body))
         case x                          => super.transform(x)
       }
 
-      private def expandTopSBlockOrOther(bodyp: MStatement): MStatement = {
+      private def expandTopSBlockOrOther(bodyp: MStatement, isFuncTop: Boolean): MStatement = {
         bodyp match {
-          case SBlock(body, tpe) => SBlock(expandTopList(body), tpe)
+          case SBlock(body, tpe) => SBlock(expandTopList(body, isFuncTop), tpe)
           case x                 => transform(x)
         }
       }
@@ -143,7 +152,7 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
         body.map({
           Replacer(repMap)(_) match {
             case s @ SubModuleDef(name, tpe, args) =>
-              val (ioSigDefs, subModuleRun, newRepMap) = expand(s)
+              val (ioSigDefs, subModuleRun, newRepMap) = expand(s, Some(moduleName))
               pullOutDefs = pullOutDefs ++ (s :: ioSigDefs)
               repMap = repMap ++ newRepMap
               subModuleRun

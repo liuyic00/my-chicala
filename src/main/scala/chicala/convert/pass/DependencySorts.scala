@@ -136,7 +136,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             val left = c.relatedIdents.fully.head
             if (lastConnect(left).contains(id)) { // only valid connection
               edges ++= (dependency ++ c.relatedIdents.dependency)
-                .map(lastConnect(_))
+                .map(lastConnect.getOrElse(_, Set.empty))
                 .flatten
                 .map(x => DirectedEdge(Vertex(id), Vertex(x)))
             }
