@@ -69,13 +69,13 @@ trait Printer extends Format {
   }
 
   def assertWarning(cond: Boolean, pos: Position, msg: String) = if (!cond) {
-    reportWaining(pos, msg, 1)
+    reportWarning(pos, msg, 3)
   }
   def assertError(cond: Boolean, pos: Position, msg: String) = if (!cond) {
     reportError(pos, msg, 1)
   }
 
-  def reportWaining(pos: Position, msg: String, tracesExtDrop: Int = 0) = {
+  def reportWarning(pos: Position, msg: String, tracesExtDrop: Int = 0) = {
     reporter.warning(
       pos,
       s"""${msg}
@@ -95,12 +95,12 @@ trait Printer extends Format {
   object TODO {
     def apply(from: String, msg: Any, tpe: Any): String = {
       val m = s"TODO($from, $msg, $tpe)"
-      reportWaining(NoPosition, m, 1)
+      reportWarning(NoPosition, m, 1)
       m
     }
     def apply(from: String, msg: Any): String = {
       val m = s"TODO($from, $msg)"
-      reportWaining(NoPosition, m, 1)
+      reportWarning(NoPosition, m, 1)
       m
     }
   }

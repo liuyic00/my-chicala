@@ -18,7 +18,14 @@ trait CTermImpls { self: ChicalaAst =>
     }
   }
   trait CApplyImpl { self: CApply =>
-    val relatedIdents: RelatedIdents = operands.map(_.relatedIdents).reduce(_ ++ _)
+    val relatedIdents: RelatedIdents =
+      op match {
+        case _: CNotDependOp =>
+          operands.head.relatedIdents ++
+            RelatedIdents.used(operands.tail.map(_.relatedIdents.dependency).reduce(_ ++ _))
+        case _ =>
+          operands.map(_.relatedIdents).reduce(_ ++ _)
+      }
     override def toString: String =
       s"${op.toString}(${operands.map(_.toString).reduce(_ + ", " + _)})"
 

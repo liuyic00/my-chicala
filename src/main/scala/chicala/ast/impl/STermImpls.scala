@@ -16,7 +16,27 @@ trait STermImpls { self: ChicalaAst =>
 
   trait SApplyImpl { self: SApply =>
     val relatedIdents = {
-      args.map(_.relatedIdents).foldLeft(RelatedIdents.empty)(_ ++ _) ++ fun.relatedIdents
+      fun match {
+        case SSelect(_, TermName("asTypeOf"), _) => {
+          val argRelatedIdents = args.map(_.relatedIdents).foldLeft(RelatedIdents.empty)(_ ++ _)
+          RelatedIdents.used(
+            argRelatedIdents.used ++ argRelatedIdents.dependency
+          ) ++ fun.relatedIdents
+        }
+        case SSelect(_, TermName("foreach"), _) => {
+          val argRelatedIdents  = args.map(_.relatedIdents).foldLeft(RelatedIdents.empty)(_ ++ _)
+          val funcRelatedIdents = fun.relatedIdents
+          RelatedIdents(
+            fully = argRelatedIdents.fully ++ funcRelatedIdents.fully,
+            partially = argRelatedIdents.partially ++ funcRelatedIdents.partially,
+            dependency = argRelatedIdents.dependency,
+            used = argRelatedIdents.used ++ funcRelatedIdents.used ++ funcRelatedIdents.dependency,
+            updated = argRelatedIdents.updated ++ funcRelatedIdents.updated
+          )
+        }
+        case _ =>
+          args.map(_.relatedIdents).foldLeft(RelatedIdents.empty)(_ ++ _) ++ fun.relatedIdents
+      }
     }
 
     override def replaced(r: Map[String, MStatement]): SApply = {
@@ -29,8 +49,7 @@ trait STermImpls { self: ChicalaAst =>
     }
   }
   trait SSelectImpl { self: SSelect =>
-    // FIXME
-    val relatedIdents = RelatedIdents.empty
+    val relatedIdents = from.relatedIdents
 
     override def toString(): String = s"SSelect(${from},${name.normal},${tpe})"
   }

@@ -43,10 +43,13 @@ trait COps { self: ChicalaAst =>
   case object VecTake   extends CBackOp // vec.take()
   case object VecLast   extends CBackOp // vec.last
 
-  case object AsUInt   extends CBackOp // .asUInt
-  case object AsSInt   extends CBackOp // .asSInt
-  case object AsBool   extends CBackOp // .asBool
-  case object AsTypeOf extends CBackOp // .asTypeOf()
+  case object AsUInt extends CBackOp // .asUInt
+  case object AsSInt extends CBackOp // .asSInt
+  case object AsBool extends CBackOp // .asBool
+
+  sealed abstract class CNotDependOp extends CBackOp
+
+  case object AsTypeOf extends CNotDependOp // .asTypeOf()
 
   sealed abstract class CUtilOp extends COp
   case object Mux               extends CUtilOp

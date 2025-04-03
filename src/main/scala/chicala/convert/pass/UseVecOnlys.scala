@@ -77,7 +77,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
                 case Fill => Right("chicala.lib.helper.BoolVec.Fill")
                 case Log2 => Right("chicala.lib.helper.BoolVec.Log2")
                 case _ =>
-                  reportWaining(NoPosition, s"untransformed CApply in UseVecOnly: ${op}")
+                  reportWarning(NoPosition, s"untransformed CApply in UseVecOnly: ${op}")
                   Left(newCApply)
               }
               someHelperName match {
