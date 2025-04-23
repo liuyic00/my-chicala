@@ -37,10 +37,24 @@ trait CTermsLoader { self: Scala2Reader =>
                 case Some(op) =>
                   val someOperands = op match {
                     case AsTypeOf =>
-                      MTermLoader(cInfo, qualifier).flatMap { case Loaded(operand) =>
-                        SignalTypeLoader(cInfo, args.head).map(
-                          _.mapValue(signalType => List(operand, GenCType(signalType)))
-                        )
+                      // TODO: remove or refactor SignalTypeLoader here, load a signalType generator directly
+                      MTermLoader.must(cInfo, qualifier).flatMap { case Loaded(operand) =>
+                        firstMatchIn(
+                          cInfo,
+                          args.head,
+                          List(
+                            SignalTypeLoader(_: CircuitInfo, _: Tree)
+                              .map(_.mapValue(signalType => GenCType(signalType))),
+                            MTermLoader(_, _)
+                          )
+                        ).left
+                          .flatMap {
+                            case NotThis =>
+                              unprocessedTree(tr, "ApplyReader")
+                              Left(Failed)
+                            case x: LRError => Left(x)
+                          }
+                          .map(_.mapValue(List(operand, _)))
                       }
                     case _ =>
                       MTermLoader
@@ -111,7 +125,7 @@ trait CTermsLoader { self: Scala2Reader =>
         case Apply(Apply(Select(qualifier, TermName("elsewhen")), condArgs), args) => {
           loadMutilple(cInfo)(
             WhenLoader.must(_, qualifier),
-            MTermLoader(_, condArgs.head),
+            MTermLoader.must(_, condArgs.head),
             StatementReader(_, args.head)
           ).flatMap {
             case Loaded((when: When) :: (elseCond: MTerm) :: elseThen :: Nil) =>
@@ -142,7 +156,7 @@ trait CTermsLoader { self: Scala2Reader =>
           }
         case Apply(Select(New(t), termNames.CONSTRUCTOR), args) if isChisel3UtilSwitchContextType(t) =>
           loadMutilple(cInfo)(
-            MTermLoader(_, args.head)
+            MTermLoader.must(_, args.head)
           ).flatMap {
             case Loaded(cond :: Nil) =>
               Right(Loaded(Switch(cond, List.empty)))
@@ -162,7 +176,7 @@ trait CTermsLoader { self: Scala2Reader =>
       if (isReturnAssert(tree)) {
         tree match {
           case Apply(Ident(TermName("_applyWithSourceLinePrintable")), args) =>
-            MTermLoader(cInfo, args.head).map { case Loaded(ast) =>
+            MTermLoader.must(cInfo, args.head).map { case Loaded(ast) =>
               Loaded(Assert(ast))
             }
           case _ => Left(NotThis)
@@ -185,7 +199,7 @@ trait CTermsLoader { self: Scala2Reader =>
       tree match {
         case Apply(Select(qualifier: Apply, name), args) if isChiselLiteralType(qualifier) => {
           // 0.U(1.W)
-          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
+          STermLoader.must(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
             val width = SignalTypeLoader.getWidth(cInfo, args) match {
               case k: KnownSize => k
               case _            => InferredSize
@@ -200,7 +214,7 @@ trait CTermsLoader { self: Scala2Reader =>
         }
         case Select(qualifier: Apply, name) if isChiselLiteralType(qualifier) => {
           // someInt.U without width
-          STermLoader(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
+          STermLoader.must(cInfo, qualifier.args.head).flatMap { case Loaded(litExp) =>
             nameToSomeLitGen(name)(litExp, InferredSize) match {
               case Some(lit) => Right(Loaded(lit))
               case None =>

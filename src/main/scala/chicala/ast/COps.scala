@@ -42,9 +42,9 @@ trait COps { self: ChicalaAst =>
 
   sealed abstract class CBackOp extends COp
 
-  case object Slice extends CBackOp with TypeChanged // a()
+  case object Slice extends CBackOp with TypeChanged // a(x) or a(l, r)
 
-  case object VecSelect extends CBackOp with TypeChanged  // vec()
+  case object VecSelect extends CBackOp with TypeChanged  // vec(x)
   case object VecTake   extends CBackOp with TypeInferred // vec.take()
   case object VecLast   extends CBackOp with TypeInferred // vec.last
 

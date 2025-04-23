@@ -36,11 +36,12 @@ trait MStatementsLoader { self: Scala2Reader =>
   }
 
   object MDefLoader extends Loader[MDef] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, LRSuccess[MDef]] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, LRSuccess[MDef]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
         case _: ValDef => ValDefReader(cInfo, tr)
         case _: DefDef => DefDefReader(cInfo, tr)
+        case _         => Left(NotThis)
       }
     }
   }

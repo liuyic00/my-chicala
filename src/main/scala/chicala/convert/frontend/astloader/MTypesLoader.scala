@@ -28,7 +28,7 @@ trait MTypesLoader { self: Scala2Reader =>
       args match {
         case Select(Apply(Select(cp, TermName("fromIntToWidth")), List(w)), TermName("W")) ::
             Nil if isChisel3Package(cp) => {
-          STermLoader(cInfo, w) match {
+          STermLoader.must(cInfo, w) match {
             case Right(Loaded(ww)) => KnownSize(ww)
             case _ =>
               errorTree(args.head, "SignalTypeLoader.getWidth")
@@ -43,9 +43,9 @@ trait MTypesLoader { self: Scala2Reader =>
 
     private def getVecArgs(cInfo: CircuitInfo, args: List[Tree]): (CSize, SignalType) = {
       if (args.length == 2) {
-        val Right(Loaded(ww))        = STermLoader(cInfo, args.head)
+        val Right(Loaded(ww))        = STermLoader.must(cInfo, args.head)
         val size                     = KnownSize(ww)
-        val Right(Loaded(cDataType)) = SignalTypeLoader(cInfo, args.tail.head)
+        val Right(Loaded(cDataType)) = SignalTypeLoader.must(cInfo, args.tail.head)
         (size, cDataType)
       } else {
         reporter.error(args.head.pos, "Unknow arg of Vec")
@@ -74,7 +74,7 @@ trait MTypesLoader { self: Scala2Reader =>
       someSignalType
     }
 
-    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[SignalType]] = {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[SignalType]] = {
       val tree = passThrough(tr)._1
       tree match {
         case Apply(fun, args) =>
@@ -82,7 +82,7 @@ trait MTypesLoader { self: Scala2Reader =>
           someDirection match {
             /* Apply(<Input(_)>, List(<UInt(width.W)>)) */
             case Some(direction) =>
-              SignalTypeLoader(cInfo, args.head).map(_.mapValue(_.updatedDriction(direction)))
+              SignalTypeLoader.must(cInfo, args.head).map(_.mapValue(_.updatedDriction(direction)))
 
             case None =>
               val f = passThrough(fun)._1
@@ -120,8 +120,7 @@ trait MTypesLoader { self: Scala2Reader =>
         case Block(stats, _) =>
           BundleDefLoader(cInfo, stats.head, "").map(_.mapValue(_.bundle))
         case _ =>
-          errorTree(tree, "SignalTypeLoader #3")
-          Left(Failed)
+          Left(NotThis)
       }
     }
   }
@@ -194,7 +193,7 @@ trait MTypesLoader { self: Scala2Reader =>
     }
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, LRSuccess[MType]] = {
       if (isChiselSignalType(tr))
-        SignalTypeLoader(cInfo, tr)
+        SignalTypeLoader.must(cInfo, tr)
       else
         STypeLoader.fromTpt(tr).map(ModifiedAndLoaded(cInfo, _)).toRight(Failed)
     }

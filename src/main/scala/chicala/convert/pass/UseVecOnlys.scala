@@ -46,9 +46,10 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                 .map(_.tpe)
                 .zip(newCApply.operands.map(_.tpe))
                 .exists({ case (a, b) => a != b }) ||
-              !(newCApply.tpe.isInstanceOf[Bool] ||
-                newCApply.tpe.isInstanceOf[Vec] ||
-                newCApply.tpe.isInstanceOf[Bundle])
+              (
+                !newCApply.tpe.isInstanceOf[Bool] &&
+                  !newCApply.tpe.isInstanceOf[Bundle]
+              )
             ) {
               val op = newCApply.op
               val someHelperName = op match {
@@ -88,9 +89,11 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                     case _       => Right("h.bv.Slice")
                   }
 
-                case Cat  => Right("h.bv.Cat")
-                case Fill => Right("h.bv.Fill")
-                case Log2 => Right("h.bv.Log2")
+                case MuxLookup => Right("h.bv.MuxLookup")
+                case Cat       => Right("h.bv.Cat")
+                case Fill      => Right("h.bv.Fill")
+                case Log2      => Right("h.bv.Log2")
+
                 case _ =>
                   reportWarning(NoPosition, s"untransformed CApply in UseVecOnly: ${op}")
                   Left(newCApply)

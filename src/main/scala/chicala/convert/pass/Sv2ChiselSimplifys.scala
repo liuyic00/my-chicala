@@ -4,11 +4,12 @@ import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
 
-import chicala.ast.util.Transformers
+import chicala.ast.util.{Transformers, Computes}
 import chicala.ast.util.InMStatements
 import chicala.util.Printer
 
-trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatements with Printer { self: ChicalaAst =>
+trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatements with Printer with Computes {
+  self: ChicalaAst =>
   val global: Global
   import global._
 
@@ -41,47 +42,60 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
                   SApply(
                     SLib("sv2chisel.helpers.vecconvert.`package`.vecToSubwords", StFunc),
                     List(a),
-                    _
+                    StWrapped("sv2chisel.helpers.SubWordable[_ <: chisel3.Data]")
                   ),
                   TermName("apply"),
                   StFunc
                 ),
-                List(l, r),
+                List(l: STerm, r: STerm),
                 StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")
               ) => {
             val tpe = a.tpe.asInstanceOf[Vec]
             // l + 1 == a.size && r == 0
-            if (
-              tpe.size == KnownSize(SApply(SSelect(l, TermName("$plus"), StFunc), List(SLiteral(1, StInt)), StInt)) &&
-              r == SLiteral(0, StInt)
-            ) {
-              a
-            } else {
-              s
+            tpe.size match {
+              case KnownSize(size) =>
+                if (
+                  isEqual(size, plus(l, SLiteral(1, StInt))) &&
+                  r == SLiteral(0, StInt)
+                ) a
+                else
+                  CApply(Slice, List(a, l, r))
+              case _ =>
+                CApply(Slice, List(a, l, r))
             }
           }
-          // a.:= expr
+          // subwordsToVec(a)
+          case SApply(
+                SLib("sv2chisel.helpers.vecconvert.`package`.subwordsToVec", StFunc),
+                List(a),
+                tpe: Vec
+              ) => {
+            transformMTerm(a)
+          }
+          // a(l,r).termName(expr)
           case SApply(
                 SSelect(
                   a @ SApply(_, _, StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")),
-                  TermName("$colon$eq"),
+                  termName,
                   StFunc
                 ),
                 List(expr),
-                StUnit
+                sApplyType
               ) => {
-            val newA = transformMTerm(a)
+            val newA    = transformMTerm(a)
+            val newExpr = transformMTerm(expr)
             if (newA.tpe.isSignalType) {
-              Connect(newA, transformMTerm(expr))
+              termName match {
+                case TermName("$colon$eq") =>
+                  Connect(newA, newExpr)
+                case TermName("asTypeOf") =>
+                  CApply(AsTypeOf, List(newA, newExpr))
+              }
             } else {
               SApply(
-                SSelect(
-                  newA,
-                  TermName("$colon$eq"),
-                  StFunc
-                ),
-                List(expr),
-                StUnit
+                SSelect(newA, termName, StFunc),
+                List(newExpr),
+                sApplyType
               )
             }
           }

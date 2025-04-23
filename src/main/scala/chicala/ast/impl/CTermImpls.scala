@@ -37,7 +37,7 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
               reportError(NoPosition, "Slice should have at most 2 operands")
               Bool.empty
           }
-        case AsTypeOf  => operands(1).tpe.asInstanceOf[SignalType]
+        case AsTypeOf  => operands(1).tpe.asInstanceOf[SignalType].nomalize
         case VecSelect => operands.head.tpe.asInstanceOf[Vec].tparam.nomalize
         case Mux       => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
         case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth

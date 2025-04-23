@@ -55,8 +55,9 @@ trait MDefsEmitter { self: StainlessEmitter with ChicalaAst =>
       private def subModuleDefCL(subModuleDef: SubModuleDef): CodeLines = {
         val name       = subModuleDef.name.toString()
         val moduleName = subModuleDef.tpe.fullName
+        val args       = subModuleDef.args.map(_.toCode).mkString(", ")
 
-        CodeLines(s"val ${name} = ${moduleName}()")
+        CodeLines(s"val ${name} = ${moduleName}(${args})")
       }
       private def sValDefCL(sValDef: SValDef): CodeLines = {
         val name = sValDef.name.toString()

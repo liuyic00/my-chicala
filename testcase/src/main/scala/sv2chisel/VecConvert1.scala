@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import sv2chisel.helpers.vecconvert._
 
-class VecConvert(width1: Int, width2: Int) extends Module {
+class VecConvert1(width1: Int, width2: Int) extends Module {
 
   val a = IO(Input(Bool()))
   val b = IO(Input(Vec(width1 + 1, Bool())))

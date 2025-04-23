@@ -34,8 +34,8 @@ trait StatementsReader { self: Scala2Reader =>
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, LRSuccess[MStatement]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
-        case _: ValDef | _: DefDef => MDefLoader(cInfo, tr)
-        case _                     => MTermLoader(cInfo, tr)
+        case _: ValDef | _: DefDef => MDefLoader.must(cInfo, tr)
+        case _                     => MTermLoader.must(cInfo, tr)
       }
     }
   }

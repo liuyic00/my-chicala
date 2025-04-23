@@ -69,7 +69,7 @@ trait CClassDefsLoader { self: Scala2Reader =>
                   case ValDef(mods, nameTmp, tpt, rhs) =>
                     val name = nameTmp.stripSuffix(" ")
                     if (isChiselSignalType(tpt)) {
-                      SignalTypeLoader(nowCInfo, rhs) match {
+                      SignalTypeLoader.must(nowCInfo, rhs) match {
                         case Right(Loaded(sigType)) =>
                           Right(ModifiedAndLoaded(nowCInfo, nowSet + (name -> sigType)))
                         case Left(f: LRExit) => Left(f)

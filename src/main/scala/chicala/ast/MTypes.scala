@@ -13,7 +13,7 @@ trait MTypes extends MTypeImpls with CTypeImpls with STypeImpls { self: ChicalaA
   // CType
   sealed abstract class CType extends MType with CTypeImpl
 
-  case class SubModule(fullName: String, ioDefs: List[IoDef]) extends CType
+  case class SubModule(fullName: String, ioDefs: List[IoDef], vparams: List[SValDef]) extends CType
 
   // SignalType
   sealed abstract class SignalType extends CType with SignalTypeImpl

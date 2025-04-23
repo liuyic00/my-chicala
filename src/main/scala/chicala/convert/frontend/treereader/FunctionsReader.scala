@@ -15,7 +15,7 @@ trait FunctionsReader { self: Scala2Reader =>
             .fromListTree(cInfo, vparams)
             .asInstanceOf[Either[LRError, ModifiedAndLoaded[List[MValDef]]]]
             .flatMap { case ModifiedAndLoaded(newCInfo, vps) =>
-              MTermLoader(newCInfo, body).map { case Loaded(b) =>
+              MTermLoader.must(newCInfo, body).map { case Loaded(b) =>
                 Loaded(SFunction(vps, b))
               }
             }

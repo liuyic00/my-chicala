@@ -53,16 +53,23 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
         case Some(moduleName) => Select(This(moduleName), name)
         case None             => Ident(name)
       }
-      val SubModuleDef(name, tpe, args) = subModuleDef
-      val subModuleName                 = name
-      val subModuleType                 = tpe
-      val ioDefs                        = tpe.ioDefs
-      // val ioName                        = tpe.ioDef.name
-      // val ioType                        = tpe.ioDef.tpe
+
+      ()
+      val SubModuleDef(subModuleName, subModuleType, subModuleArgs) = subModuleDef
+      val subModuleIoDefs                                           = subModuleType.ioDefs
 
       def flattenName(name: String) = s"${subModuleName}_${name}"
 
-      val signals       = ioDefs.flatMap(ioDef => ioDef.tpe.flatten(ioDef.name.toString()))
+      val argsReplaceIn = {
+        val argReplaceMap = subModuleType.vparams
+          .map(sValDef => SIdent(sValDef.name, sValDef.tpe): MStatement)
+          .zip(subModuleArgs: List[MStatement])
+          .toMap
+        Replacer(argReplaceMap)
+      }
+      val signals = subModuleIoDefs
+        .flatMap(ioDef => ioDef.tpe.flatten(ioDef.name.toString()))
+        .map { case (name, tpe) => (name, argsReplaceIn.transformTypeT(tpe)) }
       val inputSignals  = signals.filter({ case (name, tpe) => tpe.isInput })
       val outputSignals = signals.filter({ case (name, tpe) => tpe.isOutput })
 
@@ -94,38 +101,44 @@ trait SubModuleCalls extends ChicalaPasss with Transformers with Replacers { sel
         outputSignals
       )
 
-      def selectIt(selectPath: List[TermName]): (List[Tree], String) = {
-        val selects = selectPath match {
-          case head :: next =>
-            List(optionSelectThis(head), Ident(head)) // only need one?
-              .map(x => next.foldLeft(x)((x, y) => Select(x, y)))
-          case Nil => List.empty
+      val replaceMap = {
+        def selectIt(selectPath: List[TermName]): (List[Tree], String) = {
+          val selects = selectPath match {
+            case head :: next =>
+              List(optionSelectThis(head), Ident(head)) // only need one?
+                .map(x => next.foldLeft(x)((x, y) => Select(x, y)))
+            case Nil => List.empty
+          }
+          val flattenName = selectPath.mkString("_")
+          (selects, flattenName)
         }
-        val flattenName = selectPath.mkString("_")
-        (selects, flattenName)
-      }
-      def getReplaceMap(tpe: SignalType, prefixs: List[TermName]): Map[MStatement, MStatement] = {
-        tpe match {
-          case _: GroundType | _: Vec =>
-            val (selects, flattenName) = selectIt(prefixs)
-            val newType =
-              if (tpe.isInput) tpe.updatedPhysical(Wire).updatedDriction(Undirect)
-              else tpe.updatedPhysical(Node).updatedDriction(Undirect)
-            selects
-              .map(x =>
-                SignalRef(x, tpe)
-                  -> SignalRef(optionSelectThis(TermName(flattenName)), newType)
+        def getReplaceMap(oldTpe: SignalType, prefixs: List[TermName]): Map[MStatement, MStatement] = {
+          oldTpe match {
+            case _: GroundType | _: Vec =>
+              val (selects, flattenName) = selectIt(prefixs)
+              val newType = argsReplaceIn.transformTypeT(
+                if (oldTpe.isInput)
+                  oldTpe.updatedPhysical(Wire).updatedDriction(Undirect)
+                else
+                  oldTpe.updatedPhysical(Node).updatedDriction(Undirect)
               )
-              .toMap
-          case Bundle(physical, signals) =>
-            signals
-              .map({ case (name, tpe) => getReplaceMap(tpe, prefixs :+ name) })
-              .reduce(_ ++ _)
+              selects
+                .map(x =>
+                  SignalRef(x, oldTpe)
+                    -> SignalRef(optionSelectThis(TermName(flattenName)), newType)
+                )
+                .toMap
+            case Bundle(physical, signals) =>
+              signals
+                .map({ case (name, oldTpe) => getReplaceMap(oldTpe, prefixs :+ name) })
+                .reduce(_ ++ _)
+          }
         }
+
+        subModuleIoDefs
+          .map(ioDef => getReplaceMap(ioDef.tpe, List(subModuleName, ioDef.name)))
+          .reduce(_ ++ _)
       }
-      val replaceMap = ioDefs
-        .map(ioDef => getReplaceMap(ioDef.tpe, List(subModuleName, ioDef.name)))
-        .reduce(_ ++ _)
 
       (ioSigDefs, subModuleRun, replaceMap)
     }

@@ -56,7 +56,7 @@ trait Transformers { self: ChicalaAst =>
         case STuple(args, tpe) => STuple(args.map(transformMTerm(_)), transformStTuple(tpe))
 
         case SLib(name, tpe)          => SLib(name, transformSType(tpe))
-        case SFunction(vparams, body) => SFunction(vparams.map(transformMValDef(_)), body)
+        case SFunction(vparams, body) => SFunction(vparams.map(transformMValDef(_)), transformMTerm(body))
         case SAssign(lhs, rhs)        => SAssign(transformMTerm(lhs), transformMTerm(rhs))
 
         case EmptyMTerm => EmptyMTerm
@@ -97,11 +97,6 @@ trait Transformers { self: ChicalaAst =>
           )
       }
     }
-    def transformStatementT[T <: MStatement](statement: T): T = transform(statement).asInstanceOf[T]
-    def transformMTerm(mTerm: MTerm): MTerm                   = transform(mTerm).asInstanceOf[MTerm]
-    def transformSTerm(sTerm: STerm): STerm                   = transform(sTerm).asInstanceOf[STerm]
-    def transformSCaseDef(sCaseDef: SCaseDef): SCaseDef       = transform(sCaseDef).asInstanceOf[SCaseDef]
-    def transformMValDef(mValDef: MValDef): MValDef           = transform(mValDef).asInstanceOf[MValDef]
 
     def transformType(mType: MType): MType = {
       mType match {
@@ -113,19 +108,32 @@ trait Transformers { self: ChicalaAst =>
             })
           )
         case Vec(size, physical, tparam) =>
-          Vec(size, physical, transformTypeT(tparam))
+          Vec(transformCSize(size), physical, transformTypeT(tparam))
+        case UInt(width, physical, direction) =>
+          UInt(transformCSize(width), physical, direction)
         case _ => mType
       }
     }
 
-    def transformTypeT[T <: MType](tpe: T): T = transformType(tpe).asInstanceOf[T]
+    def transformTermName(termName: TermName): TermName = termName
 
+    def transformCSize(cSize: CSize): CSize = cSize match {
+      case KnownSize(width) => KnownSize(transformSTerm(width))
+      case _                => cSize
+    }
+
+    def transformStatementT[T <: MStatement](statement: T): T = transform(statement).asInstanceOf[T]
+    def transformMTerm(mTerm: MTerm): MTerm                   = transform(mTerm).asInstanceOf[MTerm]
+    def transformSTerm(sTerm: STerm): STerm                   = transform(sTerm).asInstanceOf[STerm]
+    def transformSCaseDef(sCaseDef: SCaseDef): SCaseDef       = transform(sCaseDef).asInstanceOf[SCaseDef]
+    def transformMValDef(mValDef: MValDef): MValDef           = transform(mValDef).asInstanceOf[MValDef]
+
+    def transformTypeT[T <: MType](tpe: T): T                   = transformType(tpe).asInstanceOf[T]
     def transfromGroundType(groundType: GroundType): GroundType = transformType(groundType).asInstanceOf[GroundType]
     def transformSignalType(signalType: SignalType): SignalType = transformType(signalType).asInstanceOf[SignalType]
     def transformUInt(uInt: UInt): UInt                         = transformType(uInt).asInstanceOf[UInt]
     def transformStTuple(stTuple: StTuple): StTuple             = transformType(stTuple).asInstanceOf[StTuple]
     def transformSType(sType: SType): SType                     = transformType(sType).asInstanceOf[SType]
 
-    def transformTermName(termName: TermName): TermName = termName
   }
 }

@@ -35,7 +35,7 @@ trait ValDefsReader { self: Scala2Reader =>
               case Match(Typed(rhs, _), _) => { // STupleUnapplyDef step 1
                 val num = tpt.tpe.typeArgs.length
                 val tpe = STypeLoader.fromTpt(tpt).get.asInstanceOf[StTuple]
-                MTermLoader(cInfo, rhs).map { case Loaded(cExp) =>
+                MTermLoader.must(cInfo, rhs).map { case Loaded(cExp) =>
                   Modified(
                     cInfo.updatedSUnapplyDefTmp(
                       num,
@@ -104,7 +104,7 @@ trait ValDefsReader { self: Scala2Reader =>
             val name     = nameTmp.stripSuffix(" ")
             val tpe      = STypeLoader.fromTpt(tpt).get
             val newCInfo = cInfo.updatedVal(name, tpe)
-            (MTermLoader(cInfo, rhs) match {
+            (MTermLoader.must(cInfo, rhs) match {
               case Right(Loaded(r)) => Right(r)
               case Left(x: LRSkip)  => Right(EmptyMTerm)
               case Left(x: LRExit)  => Left(x)
@@ -129,7 +129,7 @@ trait ValDefsReader { self: Scala2Reader =>
         name: TermName,
         args: List[Tree]
     ): Either[LRError, ModifiedAndLoaded[IoDef]] = {
-      SignalTypeLoader(cInfo, args.head).map { case Loaded(sType) =>
+      SignalTypeLoader.must(cInfo, args.head).map { case Loaded(sType) =>
         val t = sType.updatedPhysical(Io)
         ModifiedAndLoaded(
           cInfo.updatedVal(name, t),
@@ -147,12 +147,12 @@ trait ValDefsReader { self: Scala2Reader =>
     ): Either[LRError, ModifiedAndLoaded[WireDef]] = {
       if (isChisel3WireApply(func)) {
         assertError(args.length == 1, func.pos, "Should have only 1 arg in Wire()")
-        SignalTypeLoader(cInfo, args.head).map { case Loaded(st) =>
+        SignalTypeLoader.must(cInfo, args.head).map { case Loaded(st) =>
           val sigType = st.updatedPhysical(Wire)
           ModifiedAndLoaded(cInfo.updatedVal(name, sigType), WireDef(name, sigType))
         }
       } else if (isChisel3WireInitApply(func)) {
-        MTermLoader(cInfo, args.head).map { case Loaded(init) =>
+        MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
           val sigType = init.tpe.asInstanceOf[SignalType].updatedPhysical(Wire)
           ModifiedAndLoaded(
             cInfo.updatedVal(name, sigType),
@@ -184,13 +184,13 @@ trait ValDefsReader { self: Scala2Reader =>
     ): Either[LRError, ModifiedAndLoaded[RegDef]] = {
       if (isChisel3RegApply(func)) {
         assert(args.length == 1, "should have only 1 arg in Reg()")
-        SignalTypeLoader(cInfo, args.head).map { case Loaded(st) =>
+        SignalTypeLoader.must(cInfo, args.head).map { case Loaded(st) =>
           val sigType = st.updatedPhysical(Reg)
           ModifiedAndLoaded(cInfo.updatedVal(name, sigType), RegDef(name, sigType))
         }
       } else if (isChisel3RegInitApply(func)) {
         if (args.length == 1) {
-          MTermLoader(cInfo, args.head).map { case Loaded(init) =>
+          MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
             val signalInfo = init.tpe.asInstanceOf[SignalType].updatedPhysical(Reg)
             ModifiedAndLoaded(
               cInfo.updatedVal(name, signalInfo),
@@ -225,7 +225,7 @@ trait ValDefsReader { self: Scala2Reader =>
         rhs: Tree,
         isVar: Boolean
     ): Either[LRError, ModifiedAndLoaded[NodeDef]] = {
-      MTermLoader(cInfo, rhs).map { case Loaded(cExp) =>
+      MTermLoader.must(cInfo, rhs).map { case Loaded(cExp) =>
         val signalInfo = cExp.tpe.asInstanceOf[SignalType].updatedPhysical(Node)
         ModifiedAndLoaded(
           cInfo.updatedVal(name, signalInfo),
@@ -246,7 +246,7 @@ trait ValDefsReader { self: Scala2Reader =>
           someModuleDef match {
             case Some(value) =>
               val ioDefs = value.ioDefs
-              val tpe    = SubModule(moduleFullName, ioDefs)
+              val tpe    = SubModule(moduleFullName, ioDefs, value.vparams)
               MTermLoader.loadTerms(cInfo, args).map { case Loaded(mArgs) =>
                 val subModuleDef = SubModuleDef(name, tpe, mArgs)
                 ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)

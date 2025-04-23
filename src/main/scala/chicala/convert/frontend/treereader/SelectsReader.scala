@@ -25,7 +25,8 @@ trait SelectsReader { self: Scala2Reader =>
       "scala.Predef.ArrowAssoc",
       "scala.Predef.refArrayOps",
       // sv2chisel helpers
-      "sv2chisel.helpers.vecconvert.`package`.vecToSubwords"
+      "sv2chisel.helpers.vecconvert.`package`.vecToSubwords",
+      "sv2chisel.helpers.vecconvert.`package`.subwordsToVec"
     )
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)
@@ -37,9 +38,11 @@ trait SelectsReader { self: Scala2Reader =>
             if (isChiselSignalType(qualifier) || isChiselModuleType(qualifier)) {
               COpLoader(name.toString()) match {
                 case Some(op) => // unary operator
-                  MTermLoader(cInfo, qualifier).map(_.mapValue { operand =>
-                    CApply(op, List(operand))
-                  })
+                  MTermLoader
+                    .must(cInfo, qualifier)
+                    .map(_.mapValue { operand =>
+                      CApply(op, List(operand))
+                    })
                 case None => // select from bundle / module io / This
                   // undefined operator will come to this case, but it is a bug
                   Right(Loaded(SignalRef(s, cInfo.getSignalType(s))))
@@ -47,10 +50,12 @@ trait SelectsReader { self: Scala2Reader =>
             } else if (isChiselLiteralType(qualifier)) {
               LitLoader.must(cInfo, tr)
             } else {
-              MTermLoader(cInfo, qualifier).map(_.mapValue { from =>
-                val tpe = MTypeLoader.fromTpt(tpt).get
-                SSelect(from, name, tpe)
-              })
+              MTermLoader
+                .must(cInfo, qualifier)
+                .map(_.mapValue { from =>
+                  val tpe = MTypeLoader.fromTpt(tpt).get
+                  SSelect(from, name, tpe)
+                })
             }
           } else { // SSelect SIdent
             val tpe = MTypeLoader.fromTpt(tpt).get
@@ -61,9 +66,11 @@ trait SelectsReader { self: Scala2Reader =>
                 val sSelect = SSelect(SIdent(innerName, MTypeLoader.fromTpt(qualifier).get), name, tpe)
                 Right(Loaded(sSelect))
               case t =>
-                MTermLoader(cInfo, t).map(_.mapValue { from =>
-                  SSelect(from, name, tpe)
-                })
+                MTermLoader
+                  .must(cInfo, t)
+                  .map(_.mapValue { from =>
+                    SSelect(from, name, tpe)
+                  })
             }
           }
         }

@@ -104,6 +104,13 @@ trait Printer extends Format {
       m
     }
   }
+  object Unsupport {
+    def apply(from: String, msg: Any): String = {
+      val m = s"Unsupport($from, $msg)"
+      reportError(NoPosition, m, 1)
+      m
+    }
+  }
 
   implicit class NormalTermName(tn: TermName) {
     def normal: String = {

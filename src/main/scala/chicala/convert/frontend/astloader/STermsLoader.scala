@@ -7,8 +7,8 @@ trait STermsLoader { self: Scala2Reader =>
   import global._
 
   object STermLoader extends LoadedLoader[STerm] {
-    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[STerm]] = {
-      MTermLoader(cInfo, tr).asInstanceOf[Either[LRError, Loaded[STerm]]]
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[STerm]] = {
+      MTermLoader(cInfo, tr).asInstanceOf[Either[LRAllLeft, Loaded[STerm]]]
     }
   }
 

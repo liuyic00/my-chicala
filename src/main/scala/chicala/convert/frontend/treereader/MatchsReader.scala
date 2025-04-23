@@ -11,7 +11,7 @@ trait MatchsReader { self: Scala2Reader =>
       val (tree, tpt) = passThrough(tr)
       tree match {
         case Match(selector, cases) =>
-          MTermLoader(cInfo, selector).flatMap { case Loaded(mTerm) =>
+          MTermLoader.must(cInfo, selector).flatMap { case Loaded(mTerm) =>
             val tpe = MTypeLoader.fromTpt(tpt).get
 
             val cs = loadMutilple(cInfo)(cases.map({ case CaseDef(pat, guard, body) =>
@@ -33,7 +33,7 @@ trait MatchsReader { self: Scala2Reader =>
                   cf.updatedVal(name, mType)
                 }
                 if (guard != EmptyTree) { unprocessedTree(guard, "MatchReader guard") }
-                MTermLoader(newCInfo, body).map(_.mapValue(SCaseDef(nameTypes, _, MTypeLoader.fromTpt(tpt).get)))
+                MTermLoader.must(newCInfo, body).map(_.mapValue(SCaseDef(nameTypes, _, MTypeLoader.fromTpt(tpt).get)))
               }
             }): _*)
 

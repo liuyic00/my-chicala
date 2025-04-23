@@ -264,6 +264,17 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                   CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented,
                   ")"
                 )
+              case c @ SApply(SLib("h.bv.Slice", StFunc), List(x, l, r), _) if x.tpe.isInstanceOf[Vec] =>
+                val xCode         = x.toCode
+                val lCode         = l.toCode
+                val rCode         = r.toCode
+                val exprCodeLines = connect.expr.toCodeLines
+                CodeLines(
+                  s"${xCode} = h.v.partConnectList(${xCode}, ${lCode}, ${rCode}, ",
+                  exprCodeLines.indented,
+                  s")"
+                )
+
               case SignalRef(_, tpe) =>
                 val left = connect.left.toCode(true)
                 val expr = connect.expr.toCodeLines
@@ -284,7 +295,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                       s"${left} = ${left} := ".concatLastLine(expr)
                 }
               case _ =>
-                CodeLines(s"Unsupport(${connect})")
+                Unsupport("connectCL", s"Connect(${connect.left.toCode}, ${connect.expr.toCode})")
             }
           )
           .toCodeLines
