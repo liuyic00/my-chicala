@@ -151,13 +151,28 @@ trait ValDefsReader { self: Scala2Reader =>
           val sigType = st.updatedPhysical(Wire)
           ModifiedAndLoaded(cInfo.updatedVal(name, sigType), WireDef(name, sigType))
         }
-      } else if (isChisel3WireInitApply(func)) {
-        MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
-          val sigType = init.tpe.asInstanceOf[SignalType].updatedPhysical(Wire)
-          ModifiedAndLoaded(
-            cInfo.updatedVal(name, sigType),
-            WireDef(name, sigType, Some(init), isVar)
-          )
+      } else if (isChisel3WireInitApply(func) || isChisel3WireDefaultApply(func)) {
+        if (args.size == 1) {
+          MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
+            val sigType = init.tpe.asInstanceOf[SignalType].updatedPhysical(Wire)
+            ModifiedAndLoaded(
+              cInfo.updatedVal(name, sigType),
+              WireDef(name, sigType, Some(init), isVar)
+            )
+          }
+        } else if (args.size == 2) {
+          for {
+            sigType <- SignalTypeLoader.must(cInfo, args.head).map(_.value.updatedPhysical(Wire))
+            init    <- MTermLoader.must(cInfo, args.tail.head).map(_.value)
+          } yield {
+            ModifiedAndLoaded(
+              cInfo.updatedVal(name, sigType),
+              WireDef(name, sigType, Some(init), isVar)
+            )
+          }
+        } else {
+          unprocessedTree(func, "ValDefReader.loadWireDef")
+          Left(Failed)
         }
       } else if (isChisel3VecInitDoApply(func)) {
         assertError(args.length >= 1, func.pos, "Should have at last 1 arg in VecInit()")

@@ -13,12 +13,15 @@ trait ChiselAstCheck extends Utils { this: Scala2Reader =>
   def isChiselWireDefApply(tree: Tree): Boolean = List(
     isChisel3WireApply(_),
     isChisel3WireInitApply(_),
+    isChisel3WireDefaultApply(_),
     isChisel3VecInitDoApply(_)
   ).exists(_(tree))
   def isChisel3WireApply(tree: Tree): Boolean =
     passThrough(tree)._1.toString() == "chisel3.Wire.apply"
   def isChisel3WireInitApply(tree: Tree): Boolean =
     passThrough(tree)._1.toString() == "chisel3.`package`.WireInit.apply"
+  def isChisel3WireDefaultApply(tree: Tree): Boolean =
+    passThrough(tree)._1.toString() == "chisel3.WireDefault.apply"
   def isChisel3VecInitDoApply(tree: Tree): Boolean =
     passThrough(tree)._1.toString() == "chisel3.VecInit.do_apply"
 
