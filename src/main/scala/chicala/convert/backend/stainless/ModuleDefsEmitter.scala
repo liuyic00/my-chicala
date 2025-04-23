@@ -29,7 +29,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
                  |import stainless.annotation._
                  |import stainless.proof.check
                  |
-                 |import libraryUInt._""".stripMargin
+                 |import library._""".stripMargin
             )
           else
             CodeLines(

@@ -5,22 +5,34 @@ import scala.tools.nsc.Global
 
 import chicala.util.Format
 import chicala.ast.ChicalaAst
-import chicala.ChicalaConfig.useVecOnly
 
-import chicala.ast.util.Transformers
+import chicala.ast.util.{Transformers, Computes}
 import chicala.util.Printer
+import chicala.ChicalaConfig
 
-trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: ChicalaAst =>
+trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Computes { self: ChicalaAst =>
   val global: Global
   import global._
 
+  def sameCType(tpeA: MType, tpeB: MType): Boolean = {
+    val r = (tpeA, tpeB) match {
+      case (a: SignalType, b: SignalType) => a.nomalize == b.nomalize
+      case (a, b)                         => a == b
+    }
+    r
+  }
+
   object UseVecOnly extends ChicalaPass {
     def apply(cClassDef: CClassDef): CClassDef = {
-      cClassDef match {
-        case m: ModuleDef =>
-          m.copy(body = m.body.map(useVecOnlyTransformer(_)))
-        case b: BundleDef =>
-          b.copy(bundle = useVecOnlyTransformer.transformTypeT(b.bundle))
+      if (ChicalaConfig.useVecOnly) {
+        cClassDef match {
+          case m: ModuleDef =>
+            m.copy(body = m.body.map(useVecOnlyTransformer(_)))
+          case b: BundleDef =>
+            b.copy(bundle = useVecOnlyTransformer.transformTypeT(b.bundle))
+        }
+      } else {
+        cClassDef
       }
     }
 
@@ -33,49 +45,52 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
               cApply.operands
                 .map(_.tpe)
                 .zip(newCApply.operands.map(_.tpe))
-                .exists({ case (a, b) => a != b }) || cApply.tpe != newCApply.tpe
+                .exists({ case (a, b) => a != b }) ||
+              !(newCApply.tpe.isInstanceOf[Bool] ||
+                newCApply.tpe.isInstanceOf[Vec] ||
+                newCApply.tpe.isInstanceOf[Bundle])
             ) {
               val op = newCApply.op
               val someHelperName = op match {
                 case VecSelect | VecTake | Mux | AsSInt => Left(newCApply)
                 case AsTypeOf =>
-                  if (newCApply.tpe == newCApply.operands.head.tpe)
+                  if (sameCType(newCApply.tpe, newCApply.operands.head.tpe))
                     Left(newCApply.operands.head)
                   else
                     Left(newCApply)
                 case AsUInt =>
                   newCApply.operands.head.tpe match {
                     case _: Vec => Left(newCApply.operands.head)
-                    case _      => Right("chicala.lib.helper.BoolVec.AsUInt")
+                    case _      => Right("h.bv.AsUInt")
                   }
-                case AsBool => Right("chicala.lib.helper.BoolVec.AsBool")
+                case AsBool => Right("h.bv.AsBool")
 
-                case Not      => Right("chicala.lib.helper.BoolVec.Not")
-                case Negative => Right("chicala.lib.helper.BoolVec.Negative")
+                case Not      => Right("h.bv.Not")
+                case Negative => Right("h.bv.Negative")
 
-                case Add      => Right("chicala.lib.helper.BoolVec.Add")
-                case Minus    => Right("chicala.lib.helper.BoolVec.Minus")
-                case Multiply => Right("chicala.lib.helper.BoolVec.Multiply")
+                case Add      => Right("h.bv.Add")
+                case Minus    => Right("h.bv.Minus")
+                case Multiply => Right("h.bv.Multiply")
 
-                case And    => Right("chicala.lib.helper.BoolVec.And")
-                case Or     => Right("chicala.lib.helper.BoolVec.Or")
-                case Xor    => Right("chicala.lib.helper.BoolVec.Xor")
-                case LShift => Right("chicala.lib.helper.BoolVec.LShift")
-                case RShift => Right("chicala.lib.helper.BoolVec.RShift")
+                case And    => Right("h.bv.And")
+                case Or     => Right("h.bv.Or")
+                case Xor    => Right("h.bv.Xor")
+                case LShift => Right("h.bv.LShift")
+                case RShift => Right("h.bv.RShift")
 
-                case Equal     => Right("chicala.lib.helper.BoolVec.Equal")
-                case GreaterEq => Right("chicala.lib.helper.BoolVec.GreaterEq")
-                case NotEqual  => Right("chicala.lib.helper.BoolVec.NotEqual")
+                case Equal     => Right("h.bv.Equal")
+                case GreaterEq => Right("h.bv.GreaterEq")
+                case NotEqual  => Right("h.bv.NotEqual")
 
                 case Slice =>
                   newCApply.tpe match {
                     case _: Bool => Left(newCApply.copy(op = VecSelect))
-                    case _       => Right("chicala.lib.helper.BoolVec.Slice")
+                    case _       => Right("h.bv.Slice")
                   }
 
-                case Cat  => Right("chicala.lib.helper.BoolVec.Cat")
-                case Fill => Right("chicala.lib.helper.BoolVec.Fill")
-                case Log2 => Right("chicala.lib.helper.BoolVec.Log2")
+                case Cat  => Right("h.bv.Cat")
+                case Fill => Right("h.bv.Fill")
+                case Log2 => Right("h.bv.Log2")
                 case _ =>
                   reportWarning(NoPosition, s"untransformed CApply in UseVecOnly: ${op}")
                   Left(newCApply)
@@ -95,7 +110,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
           }
           case Lit(litExp, tpe: UInt) =>
             SApply(
-              SLib("chicala.lib.helper.BoolVec.Lit", StFunc),
+              SLib("h.bv.Lit", StFunc),
               tpe.width match {
                 case KnownSize(width) => List(litExp, width)
                 case _                => List(litExp)
@@ -107,7 +122,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
             SUnapplyDef(
               names,
               SApply(
-                SLib("chicala.lib.helper.BoolVec.Enum", StFunc),
+                SLib("h.bv.Enum", StFunc),
                 List(SLiteral(names.size, StInt)),
                 boolVecType
               ),
@@ -117,6 +132,27 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer { self: Ch
             x.tpe match {
               case _: UInt => SSelect(transformStatementT(x), TermName("length"), StInt)
               case _       => super.transform(mStatement)
+            }
+          case SSelect(x, TermName("asUInt"), _) => transform(x)
+          case SApply(
+                SSelect(exp, TermName("apply"), StFunc),
+                args,
+                StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")
+              ) => {
+            val x  = transformStatementT(exp)
+            val as = args.map(transformStatementT(_))
+            SApply(
+              SLib("h.bv.Slice", StFunc),
+              x :: as,
+              x.tpe
+                .asInstanceOf[Vec]
+                .copy(size = KnownSize(leftRightSize(as(0).asInstanceOf[STerm], as(1).asInstanceOf[STerm])))
+            )
+          }
+          case SApply(SLib(func, _), args, StWrapped("sv2chisel.helpers.SubWordable[_ <: chisel3.Data]")) =>
+            func match {
+              case "sv2chisel.helpers.vecconvert.`package`.vecToSubwords" => transform(args.head)
+              case _                                                      => super.transform(mStatement)
             }
           case _ => super.transform(mStatement)
         }

@@ -31,63 +31,59 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
                 Vec(_, _, _: Bool)
               ) if (!InMStatementHasTermName(funcp, vp)) =>
             SApply(
-              SLib("chicala.lib.helper.BoolVec.Fill", StFunc),
+              SLib("h.bv.Fill", StFunc),
               List(n, funcp),
               Vec(KnownSize(n), Node, Bool(Node, Undirect))
             )
-          case SApply(
+          // a(l,r)
+          case s @ SApply(
                 SSelect(
                   SApply(
-                    SSelect(
-                      SApply(
-                        SLib("sv2chisel.helpers.vecconvert.`package`.vecToSubwords", StFunc),
-                        List(a),
-                        _
-                      ),
-                      TermName("apply"),
-                      StFunc
-                    ),
-                    List(l, r),
+                    SLib("sv2chisel.helpers.vecconvert.`package`.vecToSubwords", StFunc),
+                    List(a),
                     _
                   ),
+                  TermName("apply"),
+                  StFunc
+                ),
+                List(l, r),
+                StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")
+              ) => {
+            val tpe = a.tpe.asInstanceOf[Vec]
+            // l + 1 == a.size && r == 0
+            if (
+              tpe.size == KnownSize(SApply(SSelect(l, TermName("$plus"), StFunc), List(SLiteral(1, StInt)), StInt)) &&
+              r == SLiteral(0, StInt)
+            ) {
+              a
+            } else {
+              s
+            }
+          }
+          // a.:= expr
+          case SApply(
+                SSelect(
+                  a @ SApply(_, _, StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")),
                   TermName("$colon$eq"),
                   StFunc
                 ),
                 List(expr),
-                _
+                StUnit
               ) => {
-            val tpe = a.tpe.asInstanceOf[Vec]
-            val left =
-              if (
-                tpe.size == KnownSize(SApply(SSelect(l, TermName("$plus"), StFunc), List(SLiteral(1, StInt)), StInt)) &&
-                r == SLiteral(0, StInt)
-              ) {
-                // l + 1 = a.size && r = 0
-                a
-              } else {
-                SApply(
-                  SLib("chicala.lib.helper.BoolVec.Slice", StFunc),
-                  List(transformStatementT(a), transformStatementT(l), transformStatementT(r)),
-                  tpe.copy(size =
-                    KnownSize(
-                      SApply(
-                        SSelect(
-                          SApply(
-                            SSelect(l, TermName("$plus"), StFunc),
-                            List(SLiteral(1, StInt)),
-                            StInt
-                          ),
-                          TermName("$minus"),
-                          StFunc
-                        ),
-                        List(r),
-                        StInt
-                      )
-                    )
-                  )
-                )
-              }
-            Connect(left, transformStatementT(expr))
+            val newA = transformMTerm(a)
+            if (newA.tpe.isSignalType) {
+              Connect(newA, transformMTerm(expr))
+            } else {
+              SApply(
+                SSelect(
+                  newA,
+                  TermName("$colon$eq"),
+                  StFunc
+                ),
+                List(expr),
+                StUnit
+              )
+            }
           }
 
           case _ => super.transform(mStatement)

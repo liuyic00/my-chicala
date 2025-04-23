@@ -16,9 +16,9 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
   // CTerm
   sealed abstract class CTerm extends MTerm
 
-  case class Lit(litExp: STerm, tpe: GroundType)                     extends CTerm with LitImpl
-  case class SignalRef(name: Tree, tpe: SignalType)                  extends CTerm with SignalRefImpl
-  case class CApply(op: COp, tpe: SignalType, operands: List[MTerm]) extends CTerm with CApplyImpl
+  case class Lit(litExp: STerm, tpe: GroundType)    extends CTerm with LitImpl
+  case class SignalRef(name: Tree, tpe: SignalType) extends CTerm with SignalRefImpl
+  case class CApply(op: COp, operands: List[MTerm]) extends CTerm with CApplyImpl
 
   case class Connect(left: MTerm, expr: MTerm) extends CTerm with ConnectImpl
 

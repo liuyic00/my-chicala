@@ -13,9 +13,9 @@ trait Transformers { self: ChicalaAst =>
     def transform(mStatement: MStatement): MStatement = {
       mStatement match {
         // CTerm
-        case Lit(litExp, tpe)          => Lit(transformSTerm(litExp), transfromGroundType(tpe))
-        case SignalRef(name, tpe)      => SignalRef(name, transformSignalType(tpe))
-        case CApply(op, tpe, operands) => CApply(op, transformTypeT(tpe), operands.map(transformStatementT))
+        case Lit(litExp, tpe)     => Lit(transformSTerm(litExp), transfromGroundType(tpe))
+        case SignalRef(name, tpe) => SignalRef(name, transformSignalType(tpe))
+        case CApply(op, operands) => CApply(op, operands.map(transformStatementT))
 
         case Connect(left, expr) => Connect(transformMTerm(left), transformMTerm(expr))
 

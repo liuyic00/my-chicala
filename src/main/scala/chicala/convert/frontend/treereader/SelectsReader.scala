@@ -38,7 +38,7 @@ trait SelectsReader { self: Scala2Reader =>
               COpLoader(name.toString()) match {
                 case Some(op) => // unary operator
                   MTermLoader(cInfo, qualifier).map(_.mapValue { operand =>
-                    CApply(op, SignalTypeLoader.fromTpt(tpt).get, List(operand))
+                    CApply(op, List(operand))
                   })
                 case None => // select from bundle / module io / This
                   // undefined operator will come to this case, but it is a bug

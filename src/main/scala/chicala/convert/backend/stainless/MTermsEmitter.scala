@@ -190,7 +190,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
 
               case "scala.Array.fill" => if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
-              case s if s.startsWith("chicala.lib.helper.") => s"${s}(${args})"
+              case s if s.startsWith("h.") => s"${s}(${args})"
               case _ =>
                 TODO("sApplyCode", s"SLib(${name})(${args})", sApply.tpe)
             }
@@ -253,7 +253,8 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         cnt.expands
           .map[CodeLines](connect =>
             connect.left match {
-              case CApply(VecSelect, t, operands) =>
+              case c @ CApply(VecSelect, operands) =>
+                val t    = c.tpe
                 val tpe  = operands.head.tpe
                 val left = operands.head.toCode(true)
                 val idx  = operands.tail.head.toCode
@@ -269,9 +270,9 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                 tpe match {
                   case Vec(_, _, t) =>
                     if (ChicalaConfig.simulation)
-                      CodeLines(s"${left} = chicala.lib.helper.Vec.connectSeq(${left}, ${expr.toCode})")
+                      CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
                     else
-                      CodeLines(s"${left} = chicala.lib.helper.Vec.connectList(${left}, ${expr.toCode})")
+                      CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
                   case _ =>
                     if (expr.lines.head.startsWith("if"))
                       CodeLines.warpToOneLine(

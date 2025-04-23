@@ -3,8 +3,9 @@ package chicala.ast.impl
 import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
+import chicala.ast.util.Computes
 
-trait CTermImpls { self: ChicalaAst =>
+trait CTermImpls extends Computes { self: ChicalaAst =>
   val global: Global
   import global._
 
@@ -18,6 +19,31 @@ trait CTermImpls { self: ChicalaAst =>
     }
   }
   trait CApplyImpl { self: CApply =>
+    val tpe: SignalType = {
+      op match {
+        case _: TypeNotChanged => operands.head.tpe.asInstanceOf[SignalType].nomalize
+        case _: TypeInferred =>
+          operands.head.tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
+        case _: ToBool => Bool.empty
+        case _: ToUInt => UInt.empty.setInferredWidth
+        case _: ToSInt => SInt.empty.setInferredWidth
+        // TypeChanged
+        case Slice =>
+          operands match {
+            case x :: i :: Nil => Bool.empty
+            case x :: l :: r :: Nil =>
+              UInt(KnownSize(leftRightSize(l.asInstanceOf[STerm], r.asInstanceOf[STerm])), Node, Undirect)
+            case _ =>
+              reportError(NoPosition, "Slice should have at most 2 operands")
+              Bool.empty
+          }
+        case AsTypeOf  => operands(1).tpe.asInstanceOf[SignalType]
+        case VecSelect => operands.head.tpe.asInstanceOf[Vec].tparam.nomalize
+        case Mux       => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
+        case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
+        case _         => Bool.empty
+      }
+    }
     val relatedIdents: RelatedIdents =
       op match {
         case _: CNotDependOp =>
@@ -27,12 +53,12 @@ trait CTermImpls { self: ChicalaAst =>
           operands.map(_.relatedIdents).reduce(_ ++ _)
       }
     override def toString: String =
-      s"${op.toString}(${operands.map(_.toString).reduce(_ + ", " + _)})"
+      s"${op.toString}(${operands.map(_.toString).reduce(_ + ", " + _)}, ${tpe})"
 
     override def replaced(r: Map[String, MStatement]): CApply = {
       replacedThis(r) match {
-        case CApply(op, tpe, operands) =>
-          CApply(op, tpe.replaced(r), operands.map(_.replaced(r)))
+        case CApply(op, operands) =>
+          CApply(op, operands.map(_.replaced(r)))
         case _ =>
           reportError(NoPosition, "`replaced` should keep data type not changed")
           this

@@ -17,6 +17,7 @@ trait CTypeImpls { self: ChicalaAst =>
 
     def updatedPhysical(newPhysical: CPhysical): SignalType
     def updatedDriction(newDirection: CDirection): SignalType
+    def nomalize: SignalType         = this.updatedPhysical(Node).updatedDriction(Undirect)
     def setInferredWidth: SignalType = this
     def subSignals: Set[String]      = Set.empty
     def allSignals(parentName: String, leftSide: Boolean): Set[String] = physical match {

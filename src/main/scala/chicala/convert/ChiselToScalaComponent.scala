@@ -114,6 +114,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                       SubModuleCall,
                       ChicalaPeek(packageDir, "beforSv2Simp"),
                       Sv2ChiselSimplify,
+                      ChicalaPeek(packageDir, "beforUseVecOnly"),
                       UseVecOnly,
                       ChicalaPeek(packageDir, "beforSort"),
                       DependencySort,
