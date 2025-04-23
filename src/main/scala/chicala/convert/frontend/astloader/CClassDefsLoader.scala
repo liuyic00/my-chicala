@@ -1,6 +1,7 @@
 package chicala.convert.frontend
 
 import scala.tools.nsc.Global
+import scala.collection.SeqMap
 
 trait CClassDefsLoader { self: Scala2Reader =>
   val global: Global
@@ -58,7 +59,9 @@ trait CClassDefsLoader { self: Scala2Reader =>
           var vps = List.empty[SValDef]
           val eitherInfoSignals =
             body.foldLeft(
-              Right(ModifiedAndLoaded(cInfo, Map.empty)): Either[LRError, ModifiedAndLoaded[Map[TermName, SignalType]]]
+              Right(ModifiedAndLoaded(cInfo, SeqMap.empty)): Either[LRError, ModifiedAndLoaded[
+                SeqMap[TermName, SignalType]
+              ]]
             ) {
               case (Right(ModifiedAndLoaded(nowCInfo, nowSet)), tr) => {
                 tr match {
@@ -71,7 +74,7 @@ trait CClassDefsLoader { self: Scala2Reader =>
                     if (isChiselSignalType(tpt)) {
                       SignalTypeLoader.must(nowCInfo, rhs) match {
                         case Right(Loaded(sigType)) =>
-                          Right(ModifiedAndLoaded(nowCInfo, nowSet + (name -> sigType)))
+                          Right(ModifiedAndLoaded(nowCInfo, nowSet ++ SeqMap(name -> sigType)))
                         case Left(f: LRExit) => Left(f)
                         case Left(_: LRSkip) => Right(ModifiedAndLoaded(nowCInfo, nowSet))
                       }

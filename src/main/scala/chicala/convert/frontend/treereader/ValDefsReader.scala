@@ -242,17 +242,14 @@ trait ValDefsReader { self: Scala2Reader =>
       args.head match {
         case Apply(Select(New(tpt), termNames.CONSTRUCTOR), args) =>
           val moduleFullName = tpt.tpe.toString()
-          val someModuleDef  = cInfo.readerInfo.moduleDefs.get(moduleFullName)
-          someModuleDef match {
-            case Some(value) =>
-              val ioDefs = value.ioDefs
-              val tpe    = SubModule(moduleFullName, ioDefs, value.vparams)
-              MTermLoader.loadTerms(cInfo, args).map { case Loaded(mArgs) =>
-                val subModuleDef = SubModuleDef(name, tpe, mArgs)
-                ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)
-              }
-            case None =>
-              Left(DependentClassNotDef)
+          for {
+            moduleDef <- cInfo.readerInfo.moduleDefs.get(moduleFullName).toRight(DependentClassNotDef)
+            mArgs     <- MTermLoader.loadTerms(cInfo, args).map(_.value)
+          } yield {
+            val ioDefs       = moduleDef.ioDefs
+            val tpe          = SubModule(moduleFullName, ioDefs, moduleDef.vparams)
+            val subModuleDef = SubModuleDef(name, tpe, mArgs)
+            ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)
           }
         case _ =>
           unprocessedTree(args.head, "ValDefReader.loadSubModuleDef")

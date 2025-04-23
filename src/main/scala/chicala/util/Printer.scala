@@ -26,7 +26,7 @@ trait Printer extends Format {
   }
 
   def unprocessedTree(tree: Tree, from: String) = {
-    reporter.warning(
+    reporter.error(
       tree.pos,
       s"""not processed in ${from}:
         |tree.tpe:
@@ -72,7 +72,7 @@ trait Printer extends Format {
     reportWarning(pos, msg, 3)
   }
   def assertError(cond: Boolean, pos: Position, msg: String) = if (!cond) {
-    reportError(pos, msg, 1)
+    reportError(pos, msg, 3)
   }
 
   def reportWarning(pos: Position, msg: String, tracesExtDrop: Int = 0) = {

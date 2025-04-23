@@ -93,15 +93,26 @@ trait CircuitInfos { self: Scala2Reader =>
               reportError(qualifier.pos, "Unknown structure in CircuitInfo.getMType #1")
               TermName("")
           }
-          val tpe       = vals(moduleName).asInstanceOf[SubModule]
-          val moduleDef = readerInfo.moduleDefs(tpe.fullName)
-          moduleDef.ioDefs.find(_.name == termName) match {
-            case Some(ioDef) => ioDef.tpe
-            case None =>
-              errorTree(
-                tree,
-                s"TermName $termName not found under $moduleName(${tpe.fullName}) [CircuitInfo_getMType_3]"
+
+          (for {
+            tpe <- vals
+              .get(moduleName)
+              .map(_.asInstanceOf[SubModule])
+              .toRight(s"subModule `$moduleName` not found in vals")
+            moduleDef <- readerInfo.moduleDefs
+              .get(tpe.fullName)
+              .toRight(s"`${tpe.fullName}` not found in moduleDefs")
+            ioDef <- moduleDef.ioDefs
+              .find(_.name == termName)
+              .toRight(
+                s"TermName `$termName` not found under `$moduleName`(`${tpe.fullName}`)"
               )
+          } yield {
+            ioDef.tpe
+          }) match {
+            case Right(value) => value
+            case Left(err) =>
+              reportError(tree.pos, err)
               SignalType.empty
           }
         case Select(qualifier, termName: TermName) => select(getSignalType(qualifier), termName)

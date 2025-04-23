@@ -31,6 +31,38 @@ trait SelectsReader { self: Scala2Reader =>
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[MTerm]] = {
       val (tree, tpt) = passThrough(tr)
       tree match {
+        // get value of <init>$default$n
+        case Select(Select(_, _), termName) if termName.decode.startsWith("<init>$default$") => {
+          val defaultMethodSym = tree.symbol
+          val ownerSym         = defaultMethodSym.owner
+          for {
+            methodSym <- ownerSym.info.decls
+              .find(_.name == defaultMethodSym.name)
+              .toRight({
+                reportError(tree.pos, s"not found $tree [@SelectReader_1]")
+                Failed
+              })
+            defdef <- (
+              // find DefDef through attachments
+              methodSym.attachments.all
+                .collectFirst { case d: global.DefDef if d.symbol == methodSym => d }
+              )
+              .orElse(
+                // or find DefDef through current run units,
+                // if the attachment is not available
+                currentRun.units.toList.flatMap { unit =>
+                  unit.body.collect { case d: global.DefDef if d.symbol == methodSym => d }
+                }.headOption
+              )
+              .toRight({
+                reportError(tree.pos, s"not found $tree [@SelectReader_2]")
+                Failed
+              })
+            loaded <- MTermLoader.must(cInfo, defdef.rhs)
+          } yield {
+            loaded
+          }
+        }
         case s @ Select(qualifier, name: TermName) => {
           if (sLibs.contains(s.toString()))
             Right(Loaded(SLib(s.toString(), StFunc)))

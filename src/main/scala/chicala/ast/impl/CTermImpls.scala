@@ -85,7 +85,7 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
     def expands: List[Connect] = {
       (left, expr) match {
         case (SignalRef(ln, lt: Bundle), SignalRef(rn, rt: Bundle)) =>
-          val subNames = lt.signals.keySet.intersect(rt.signals.keySet).toList
+          val subNames = lt.signals.keys.filter(rt.signals.contains).toList
           subNames
             .map(n =>
               Connect(

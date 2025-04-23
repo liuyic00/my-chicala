@@ -3,6 +3,7 @@ package chicala.ast
 import scala.tools.nsc.Global
 
 import chicala.ast.impl._
+import scala.collection.SeqMap
 
 trait MTypes extends MTypeImpls with CTypeImpls with STypeImpls { self: ChicalaAst =>
   val global: Global
@@ -23,8 +24,8 @@ trait MTypes extends MTypeImpls with CTypeImpls with STypeImpls { self: ChicalaA
   case class SInt(width: CSize, physical: CPhysical, direction: CDirection) extends GroundType with SIntImpl
   case class Bool(physical: CPhysical, direction: CDirection)               extends GroundType with BoolImpl
 
-  case class Vec(size: CSize, physical: CPhysical, tparam: SignalType)       extends SignalType with VecImpl
-  case class Bundle(physical: CPhysical, signals: Map[TermName, SignalType]) extends SignalType with BundleImpl
+  case class Vec(size: CSize, physical: CPhysical, tparam: SignalType)          extends SignalType with VecImpl
+  case class Bundle(physical: CPhysical, signals: SeqMap[TermName, SignalType]) extends SignalType with BundleImpl
 
   // CPhysical
   sealed abstract class CPhysical

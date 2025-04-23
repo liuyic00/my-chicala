@@ -12,7 +12,7 @@ trait MStatementsLoader { self: Scala2Reader =>
     def must(cInfo: CircuitInfo, tr: Tree): Either[LRError, LRSuccess[M]] = {
       apply(cInfo, tr).left.map {
         case NotThis =>
-          unprocessedTree(tr, "must")
+          unprocessedTree(tr, s"`must` of `${this.getClass()}`")
           Failed
         case x: LRError => x
       }
@@ -24,7 +24,7 @@ trait MStatementsLoader { self: Scala2Reader =>
     override def must(cInfo: CircuitInfo, tr: Tree): Either[LRError, Loaded[M]] = {
       apply(cInfo, tr).left.map {
         case NotThis =>
-          unprocessedTree(tr, "must")
+          unprocessedTree(tr, s"`must` of `${this.getClass()}`")
           Failed
         case x: LRError => x
       }
