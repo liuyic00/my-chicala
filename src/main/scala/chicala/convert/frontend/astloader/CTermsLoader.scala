@@ -38,24 +38,27 @@ trait CTermsLoader { self: Scala2Reader =>
                   val someOperands = op match {
                     case AsTypeOf =>
                       // TODO: remove or refactor SignalTypeLoader here, load a signalType generator directly
-                      MTermLoader.must(cInfo, qualifier).flatMap { case Loaded(operand) =>
-                        firstMatchIn(
-                          cInfo,
-                          args.head,
-                          List(
-                            SignalTypeLoader(_: CircuitInfo, _: Tree)
-                              .map(_.mapValue(signalType => GenCType(signalType))),
-                            MTermLoader(_, _)
-                          )
-                        ).left
-                          .flatMap {
-                            case NotThis =>
-                              unprocessedTree(tr, "ApplyReader")
-                              Left(Failed)
-                            case x: LRError => Left(x)
-                          }
-                          .map(_.mapValue(List(operand, _)))
-                      }
+                      (for {
+                        signal <- MTermLoader.must(cInfo, qualifier).map(_.value)
+                        typegen <-
+                          firstMatchIn(
+                            cInfo,
+                            args.head,
+                            List(
+                              SignalTypeLoader(_: CircuitInfo, _: Tree)
+                                .map(_.mapValue(signalType => GenCType(signalType))),
+                              MTermLoader(_, _)
+                            )
+                          ).map(_.value)
+                      } yield {
+                        Loaded(List(signal, typegen))
+                      }).left
+                        .flatMap {
+                          case NotThis =>
+                            unprocessedTree(tr, "[@CApplyLoader_1]")
+                            Left(Failed)
+                          case x: LRError => Left(x)
+                        }
                     case _ =>
                       MTermLoader
                         .loadTerms(cInfo, qualifier :: args)

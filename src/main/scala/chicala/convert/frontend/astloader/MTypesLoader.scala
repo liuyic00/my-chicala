@@ -111,9 +111,7 @@ trait MTypesLoader { self: Scala2Reader =>
                       .loadTerms(cInfo, args)
                       .map(_.mapValue(bundleDef.applyArgs(_).bundle))
                   }
-                case _ =>
-                  unprocessedTree(f, "SignalTypeLoader #2")
-                  Left(Failed)
+                case _ => Left(NotThis)
               }
           }
 
