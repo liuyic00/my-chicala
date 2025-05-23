@@ -37,11 +37,11 @@ trait Scala2Reader
   sealed trait LRWrong extends LRAllLeft
   case object NotThis  extends LRWrong
 
-  sealed trait LRError             extends LRAllLeft
-  sealed trait LRExit              extends LRError
-  sealed trait LRSkip              extends LRError
-  case object Failed               extends LRSkip
-  case object DependentClassNotDef extends LRExit
+  sealed trait LRError                               extends LRAllLeft
+  sealed trait LRExit                                extends LRError
+  sealed trait LRSkip                                extends LRError
+  case object Failed                                 extends LRSkip
+  case class DependentClassNotDef(className: String) extends LRExit
 
   sealed trait LRSuccess[+A] extends {
     def mapValue[B](f: A => B): LRSuccess[B]

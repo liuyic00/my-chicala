@@ -258,8 +258,10 @@ trait ValDefsReader { self: Scala2Reader =>
         case Apply(Select(New(tpt), termNames.CONSTRUCTOR), args) =>
           val moduleFullName = tpt.tpe.toString()
           for {
-            moduleDef <- cInfo.readerInfo.moduleDefs.get(moduleFullName).toRight(DependentClassNotDef)
-            mArgs     <- MTermLoader.loadTerms(cInfo, args).map(_.value)
+            moduleDef <- cInfo.readerInfo.moduleDefs
+              .get(moduleFullName)
+              .toRight(DependentClassNotDef(moduleFullName))
+            mArgs <- MTermLoader.loadTerms(cInfo, args).map(_.value)
           } yield {
             val ioDefs       = moduleDef.ioDefs
             val tpe          = SubModule(moduleFullName, ioDefs, moduleDef.vparams)

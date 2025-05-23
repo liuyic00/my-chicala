@@ -105,7 +105,7 @@ trait MTypesLoader { self: Scala2Reader =>
                   val bundleFullName = tpt.tpe.toString()
                   val eitherBundleDef = cInfo.readerInfo.bundleDefs
                     .get(bundleFullName)
-                    .toRight(DependentClassNotDef)
+                    .toRight(DependentClassNotDef(bundleFullName))
                   eitherBundleDef.flatMap { bundleDef =>
                     MTermLoader
                       .loadTerms(cInfo, args)

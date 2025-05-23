@@ -93,7 +93,8 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
           eitherDef match {
             case Left(Failed) =>
               reporter.error(tree.pos, "Unknown error in ChiselToScalaPhase #1")
-            case Left(DependentClassNotDef) =>
+            case Left(DependentClassNotDef(name)) =>
+              inform(s"Dependent Class not defined: $name, process later")
               readerInfo = readerInfo.addedTodo(tree, packageName)
 
             case Right(cClassDef) => {
@@ -151,13 +152,16 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
     }
 
     def processTodos(): Unit = {
-      logger.log(s"processTodos: ${readerInfo.todos.size}")
+      inform(s"processTodos: ${readerInfo.todos.size}")
       var lastNum = readerInfo.todos.size + 1
       while (readerInfo.todos.size > 0 && lastNum > readerInfo.todos.size) {
         val todos = readerInfo.todos
         lastNum = todos.size
         readerInfo = readerInfo.copy(todos = List.empty)
-        todos.foreach { case (t, pname) => applyOnTree(t, pname) }
+        todos.foreach { case (t, pname) =>
+          inform(s"processTodos: ${t.asInstanceOf[ClassDef].name} in $pname")
+          applyOnTree(t, pname)
+        }
       }
     }
 
