@@ -230,4 +230,10 @@ trait CTermsLoader { self: Scala2Reader =>
       }
     }
   }
+
+  object GenCTypeLoader extends LoadedLoader[GenCType] {
+    def apply(cInfo: CircuitInfo, tr: Tree): Either[LRAllLeft, Loaded[GenCType]] = {
+      SignalTypeLoader(cInfo, tr).map(_.mapValue(GenCType(_)))
+    }
+  }
 }

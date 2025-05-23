@@ -17,6 +17,7 @@ trait ApplysReader { self: Scala2Reader =>
           SwitchLoader(_, _),
           ConnectLoader(_, _),
           CApplyLoader(_, _),
+          GenCTypeLoader(_, _),
           LitLoader(_, _),
           STupleLoader(_, _),
           SAssignLoader(_, _),
