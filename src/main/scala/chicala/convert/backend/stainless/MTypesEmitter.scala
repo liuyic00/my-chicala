@@ -35,10 +35,9 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
             case StArray(tparam) =>
               if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
-            case StUnit => "Unit"
-
-            case StWrapped("Nothing") => "Nothing"
-            case x                    => TODO("Code", s"SType($x)")
+            case StUnit       => "Unit"
+            case StWrapped(s) => s
+            case x            => TODO("Code", s"SType($x)")
           }
         case EmptyMType => TODO("Code", "EmptyMType")
       }

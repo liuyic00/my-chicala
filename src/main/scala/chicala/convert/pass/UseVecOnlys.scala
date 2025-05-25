@@ -140,7 +140,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
           case SApply(
                 SSelect(exp, TermName("apply"), StFunc),
                 args,
-                StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")
+                StWrapped("sv2chisel.helpers.SubWords[chisel3.Bool]")
               ) => {
             val x  = transformStatementT(exp)
             val as = args.map(transformStatementT(_))
@@ -152,7 +152,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                 .copy(size = KnownSize(leftRightSize(as(0).asInstanceOf[STerm], as(1).asInstanceOf[STerm])))
             )
           }
-          case SApply(SLib(func, _), args, StWrapped("sv2chisel.helpers.SubWordable[_ <: chisel3.Data]")) =>
+          case SApply(SLib(func, _), args, StWrapped("sv2chisel.helpers.SubWordable[chisel3.Bool]")) =>
             func match {
               case "sv2chisel.helpers.vecconvert.`package`.vecToSubwords" => transform(args.head)
               case _                                                      => super.transform(mStatement)

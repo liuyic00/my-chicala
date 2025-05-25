@@ -42,13 +42,13 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
                   SApply(
                     SLib("sv2chisel.helpers.vecconvert.`package`.vecToSubwords", StFunc),
                     List(a),
-                    StWrapped("sv2chisel.helpers.SubWordable[_ <: chisel3.Data]")
+                    StWrapped("sv2chisel.helpers.SubWordable[chisel3.Bool]")
                   ),
                   TermName("apply"),
                   StFunc
                 ),
                 List(l: STerm, r: STerm),
-                StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")
+                StWrapped("sv2chisel.helpers.SubWords[chisel3.Bool]")
               ) => {
             val tpe = a.tpe.asInstanceOf[Vec]
             // l + 1 == a.size && r == 0
@@ -75,7 +75,7 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
           // a(l,r).termName(expr)
           case SApply(
                 SSelect(
-                  a @ SApply(_, _, StWrapped("sv2chisel.helpers.SubWords[_ <: chisel3.Data]")),
+                  a @ SApply(_, _, StWrapped("sv2chisel.helpers.SubWords[chisel3.Bool]")),
                   termName,
                   StFunc
                 ),

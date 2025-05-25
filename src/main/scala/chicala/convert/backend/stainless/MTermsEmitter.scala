@@ -163,7 +163,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                 case "forall"   => s"${from}.forall(${args})"
                 case "+:"       => s"(${args} +: ${from})"
                 case "update"   => s"${from} = ${from}.updated(${args})"
-                case _          => TODO("sApplyCode", s"SSelect(${from}.${name})(${args})")
+                case _          => s"${from}.${name}(${args})"
               }
             }
           case SLib(name, tpe) =>
@@ -227,7 +227,11 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
               case "bitLength"    => s"bitLength(${from})"
               case "indices"      => s"(0 until ${from}.length)"
               case "toIndexedSeq" => s"${from}"
-              case _              => TODO("sSelectCode", s"${from}.${name}")
+
+              case "None" if from == "scala" => "None"
+              case "Some" if from == "scala" => "Some"
+
+              case _ => s"${from}.${name}"
             }
           )
       }

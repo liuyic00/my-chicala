@@ -125,14 +125,6 @@ trait MTypesLoader { self: Scala2Reader =>
 
   object STypeLoader extends MTypeLoaderLib {
 
-    private val wrappedTypes = List(
-      "scala.collection.immutable.Range",
-      "scala.collection.immutable.Range.Exclusive",
-      "scala.collection.WithFilter[Any,[_]Any]",
-      "scala.collection.ArrayOps[",
-      "ArrowAssoc[",
-      "Nothing"
-    )
     private def isSeq(tpe: Type): Boolean = {
       val typeStr = tpe.toString()
       List(
@@ -167,8 +159,6 @@ trait MTypesLoader { self: Scala2Reader =>
           case Nil          => StAny
         }
         Some(StArray(tparam))
-      } else if (wrappedTypes.exists(tpe.toString().startsWith(_))) {
-        Some(StWrapped(tpe.toString()))
       } else {
         tpe.erasure.toString() match {
           case "Int"                     => Some(StInt)
@@ -176,9 +166,7 @@ trait MTypesLoader { self: Scala2Reader =>
           case "scala.math.BigInt"       => Some(StBigInt)
           case "Boolean"                 => Some(StBoolean)
           case "scala.runtime.BoxedUnit" => Some(StUnit)
-          case s =>
-            assertWarning(true, tr.pos, s"This type `${s}` need check")
-            Some(StWrapped(s))
+          case _                         => Some(StWrapped(tpe.toString()))
         }
       }
     }
