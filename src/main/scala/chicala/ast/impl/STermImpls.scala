@@ -8,11 +8,7 @@ trait STermImpls { self: ChicalaAst =>
   val global: Global
   import global._
 
-  trait STermImpl { self: STerm =>
-    override def replaced(replaceMap: Map[String, MStatement]): STerm = {
-      replaceMap.get(this.toString()).getOrElse(this).asInstanceOf[STerm]
-    }
-  }
+  trait STermImpl { self: STerm => }
 
   trait SApplyImpl { self: SApply =>
     val relatedIdents = {
@@ -36,15 +32,6 @@ trait STermImpls { self: ChicalaAst =>
         }
         case _ =>
           args.map(_.relatedIdents).foldLeft(RelatedIdents.empty)(_ ++ _) ++ fun.relatedIdents
-      }
-    }
-
-    override def replaced(r: Map[String, MStatement]): SApply = {
-      replacedThis(r) match {
-        case SApply(fun, args, tpe) => SApply(fun.replaced(r), args.map(_.replaced(r)), tpe.replaced(r))
-        case _ =>
-          reportError(NoPosition, "`replaced` should keep data type not changed")
-          this
       }
     }
   }
@@ -103,16 +90,6 @@ trait STermImpls { self: ChicalaAst =>
 
   trait STupleImpl { self: STuple =>
     val relatedIdents = args.map(_.relatedIdents).reduce(_ ++ _)
-
-    override def replaced(r: Map[String, MStatement]): STuple = {
-      replacedThis(r) match {
-        case STuple(args, tpe) =>
-          STuple(args.map(_.replaced(r)), tpe.replaced(r))
-        case _ =>
-          reportError(NoPosition, "`replaced` should keep data type not changed")
-          this
-      }
-    }
 
     def size = args.size
   }

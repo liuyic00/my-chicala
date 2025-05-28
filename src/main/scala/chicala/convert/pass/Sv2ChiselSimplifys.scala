@@ -70,7 +70,7 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
                 List(a),
                 tpe: Vec
               ) => {
-            transformMTerm(a)
+            transformT(a)
           }
           // a(l,r).termName(expr)
           case SApply(
@@ -82,8 +82,8 @@ trait Sv2ChiselSimplifys extends ChicalaPasss with Transformers with InMStatemen
                 List(expr),
                 sApplyType
               ) => {
-            val newA    = transformMTerm(a)
-            val newExpr = transformMTerm(expr)
+            val newA    = transformT[MTerm](a)
+            val newExpr = transformT[MTerm](expr)
             if (newA.tpe.isSignalType) {
               termName match {
                 case TermName("$colon$eq") =>

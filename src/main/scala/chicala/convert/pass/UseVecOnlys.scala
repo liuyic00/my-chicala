@@ -133,7 +133,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
             )
           case SSelect(x, TermName("getWidth"), StInt) =>
             x.tpe match {
-              case _: UInt => SSelect(transformStatementT(x), TermName("length"), StInt)
+              case _: UInt => SSelect(transformT(x), TermName("length"), StInt)
               case _       => super.transform(mStatement)
             }
           case SSelect(x, TermName("asUInt"), _) => transform(x)
@@ -142,8 +142,8 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                 args,
                 StWrapped("sv2chisel.helpers.SubWords[chisel3.Bool]")
               ) => {
-            val x  = transformStatementT(exp)
-            val as = args.map(transformStatementT(_))
+            val x  = transformT(exp)
+            val as = args.map(transformT(_))
             SApply(
               SLib("h.bv.Slice", StFunc),
               x :: as,

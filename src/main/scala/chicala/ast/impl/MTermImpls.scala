@@ -11,23 +11,13 @@ trait MTermImpls { self: ChicalaAst =>
   trait MStatementImpl { self: MStatement =>
     def tpe: MType
     def relatedIdents: RelatedIdents
-    def replacedThis(replaceMap: Map[String, MStatement]): MStatement = {
-      replaceMap.getOrElse(this.toString(), this)
-    }
-    def replaced(replaceMap: Map[String, MStatement]): MStatement = {
-      // FIXME: need recursively replacing all terms
-      replacedThis(replaceMap)
-    }
+
     def isEmpty  = this == EmptyMTerm
     def nonEmpty = !isEmpty
   }
 
   trait MTermImpl { self: MTerm =>
     def tpe: MType
-
-    override def replaced(replaceMap: Map[String, MStatement]): MTerm = {
-      replaceMap.get(this.toString()).getOrElse(this).asInstanceOf[MTerm]
-    }
   }
   object MTerm {
     def empty = EmptyMTerm

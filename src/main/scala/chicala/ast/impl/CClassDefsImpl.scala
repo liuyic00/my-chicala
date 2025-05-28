@@ -3,8 +3,10 @@ package chicala.ast.impl
 import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
+import chicala.ast.util.Replacers
+import scala.tools.nsc.interactive.Replayer
 
-trait CClassDefsImpl { self: ChicalaAst =>
+trait CClassDefsImpl extends Replacers { self: ChicalaAst =>
   val global: Global
   import global._
 
@@ -22,12 +24,12 @@ trait CClassDefsImpl { self: ChicalaAst =>
   }
   trait BundleDefImpl { self: BundleDef =>
     def applyArgs(args: List[MTerm]): BundleDef = {
-      val replaceMap: Map[String, MStatement] = vparams
+      val replaceMap: Map[MStatement, MStatement] = vparams
         .zip(args)
-        .map({ case (p, a) => SIdent(p.name, p.tpe).toString() -> a })
+        .map({ case (p, a) => SIdent(p.name, p.tpe) -> a })
         .toMap
 
-      this.copy(bundle = bundle.replaced(replaceMap))
+      this.copy(bundle = Replacer(replaceMap).transformTypeT(bundle))
     }
   }
 }

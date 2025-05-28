@@ -50,16 +50,6 @@ trait MDefImpls { self: ChicalaAst =>
       val newVals = tpe.allSignals(name.toString(), false)
       RelatedIdents(newVals, Set.empty, Set.empty, newVals, Set.empty)
     } ++ someInit.map(_.relatedIdents).getOrElse(RelatedIdents.empty)
-
-    override def replaced(r: Map[String, MStatement]): WireDef = {
-      replacedThis(r) match {
-        case WireDef(name, tpe, someInit, isVar) =>
-          WireDef(name, tpe.replaced(r), someInit.map(_.replaced(r)), isVar)
-        case _ =>
-          reportError(NoPosition, "`replaced` should keep data type not changed")
-          this
-      }
-    }
   }
   trait RegDefImpl { self: RegDef =>
     val relatedIdents = {

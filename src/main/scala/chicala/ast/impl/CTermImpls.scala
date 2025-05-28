@@ -55,15 +55,6 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
     override def toString: String =
       s"${op.toString}(${operands.map(_.toString).reduce(_ + ", " + _)}, ${tpe})"
 
-    override def replaced(r: Map[String, MStatement]): CApply = {
-      replacedThis(r) match {
-        case CApply(op, operands) =>
-          CApply(op, operands.map(_.replaced(r)))
-        case _ =>
-          reportError(NoPosition, "`replaced` should keep data type not changed")
-          this
-      }
-    }
   }
 
   trait ConnectImpl { self: Connect =>
@@ -75,12 +66,6 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
       }
       RelatedIdents(fully, Set.empty, Set.empty, Set.empty, Set.empty)
     } ++ expr.relatedIdents
-
-    override def replaced(replaceMap: Map[String, MStatement]): Connect = {
-      val tmp  = replaceMap.get(this.toString()).getOrElse(this).asInstanceOf[Connect]
-      val tmpb = Connect(tmp.left.replaced(replaceMap), tmp.expr.replaced(replaceMap))
-      tmpb
-    }
 
     def expands: List[Connect] = {
       (left, expr) match {

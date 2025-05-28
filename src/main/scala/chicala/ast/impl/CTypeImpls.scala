@@ -8,9 +8,7 @@ trait CTypeImpls { self: ChicalaAst =>
   val global: Global
   import global._
 
-  trait CTypeImpl { self: CType =>
-    def replaced(replaceMap: Map[String, MStatement]): CType = this
-  }
+  trait CTypeImpl { self: CType => }
 
   trait SignalTypeImpl { self: SignalType =>
     def physical: CPhysical
@@ -23,10 +21,6 @@ trait CTypeImpls { self: ChicalaAst =>
     def allSignals(parentName: String, leftSide: Boolean): Set[String] = physical match {
       case Reg => Set(if (leftSide) Reg.nowSignal(parentName) else Reg.nextSignal(parentName))
       case _   => Set(parentName)
-    }
-
-    override def replaced(replaceMap: Map[String, MStatement]): SignalType = {
-      this
     }
 
     def isInput: Boolean
@@ -69,8 +63,6 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
-    override def replaced(r: Map[String, MStatement]): UInt =
-      this.copy(width = width.replaced(r))
     def usedVal: Set[String] = width match {
       case KnownSize(width) => width.relatedIdents.used
       case _                => Set.empty
@@ -86,8 +78,6 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
-    override def replaced(r: Map[String, MStatement]): SInt =
-      this.copy(width = width.replaced(r))
     def usedVal: Set[String] = width match {
       case KnownSize(width) => width.relatedIdents.used
       case _                => Set.empty
@@ -101,7 +91,6 @@ trait CTypeImpls { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
-    override def replaced(r: Map[String, MStatement]): Bool = this
 
     def usedVal: Set[String] = Set.empty
   }
@@ -111,9 +100,6 @@ trait CTypeImpls { self: ChicalaAst =>
       copy(physical = newPhysical, tparam = tparam.updatedPhysical(newPhysical))
     def updatedDriction(newDirection: CDirection): Vec =
       copy(tparam = tparam.updatedDriction(newDirection))
-
-    override def replaced(r: Map[String, MStatement]): Vec =
-      this.copy(size = size.replaced(r), tparam = tparam.replaced(r))
 
     def isInput  = tparam.isInput
     def isOutput = tparam.isOutput
@@ -150,11 +136,6 @@ trait CTypeImpls { self: ChicalaAst =>
       }
     }
 
-    override def replaced(r: Map[String, MStatement]): Bundle =
-      this.copy(
-        signals = signals.map({ case (name, tpe) => name -> tpe.replaced(r) })
-      )
-
     // Bundle it-self cannot be a Input or Output
     def isInput  = false
     def isOutput = false
@@ -179,15 +160,7 @@ trait CTypeImpls { self: ChicalaAst =>
     def nextSignals(signals: Set[String]) = signals.map(nextSignal(_))
   }
 
-  trait CSizeImpl { self: CSize =>
-    def replaced(r: Map[String, MStatement]): CSize = {
-      this match {
-        case KnownSize(width) =>
-          KnownSize(width.replaced(r))
-        case _ => this
-      }
-    }
-  }
+  trait CSizeImpl { self: CSize => }
 
   trait UIntObjImpl {
     def empty = UInt(UnknownSize, Node, Undirect)

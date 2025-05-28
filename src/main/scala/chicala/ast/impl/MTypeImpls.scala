@@ -17,12 +17,7 @@ trait MTypeImpls { self: ChicalaAst =>
       case _: SType => true
       case _        => false
     }
-
-    def replaced(replaceMap: Map[String, MStatement]): MType
-
   }
 
-  trait EmptyMTypeImpl {
-    def replaced(replaceMap: Map[String, MStatement]) = EmptyMType
-  }
+  trait EmptyMTypeImpl {}
 }
