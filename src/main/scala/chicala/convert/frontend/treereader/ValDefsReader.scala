@@ -9,7 +9,6 @@ trait ValDefsReader { self: Scala2Reader =>
 
   object ValDefReader extends Reader[MDef] {
     def apply(cInfo: CircuitInfo, tr: Tree): Either[LRError, LRSuccess[MDef]] = {
-      // TODO: has Loaded?
       val (tree, _) = passThrough(tr)
       tree match {
         case ValDef(mods, nameTmp, tpt: TypeTree, rhs) => {
@@ -267,6 +266,38 @@ trait ValDefsReader { self: Scala2Reader =>
             val tpe          = SubModule(moduleFullName, ioDefs, moduleDef.vparams)
             val subModuleDef = SubModuleDef(name, tpe, mArgs)
             ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)
+          }
+        case Block(stats, expr) =>
+          val tmpSValDefs: Either[LRError, List[SValDef]] = stats
+            .map(ValDefReader(cInfo, _))
+            .foldLeft(
+              Right(List.empty[SValDef]): Either[LRError, List[SValDef]]
+            )((past, eitherLoaded) => {
+              for {
+                ls     <- past
+                loaded <- eitherLoaded
+              } yield {
+                loaded match {
+                  case x: LRLoaded[_] if x.value.isInstanceOf[SValDef] => ls :+ x.value.asInstanceOf[SValDef]
+                  case _ =>
+                    reportError(stats.head.pos, "ValDefReader.loadSubModuleDef Block")
+                    ls
+                }
+              }
+            })
+
+          for {
+            replaceMap   <- tmpSValDefs.map(_.map(x => x.name -> x.rhs).toMap)
+            subModuleDef <- loadSubModuleDef(cInfo, name, List(expr)).map(_.value)
+          } yield {
+            val newArgs = subModuleDef.args.map {
+              case s: SIdent => replaceMap.getOrElse(s.name, s)
+              case x         => x
+            }
+            ModifiedAndLoaded(
+              cInfo.updatedVal(name, subModuleDef.tpe),
+              subModuleDef.copy(args = newArgs)
+            )
           }
         case _ =>
           unprocessedTree(args.head, "ValDefReader.loadSubModuleDef")
