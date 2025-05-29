@@ -72,6 +72,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
           case Add       => "+"
           case Minus     => "-"
           case Multiply  => "*"
+          case AddFull   => "+&"
           case And       => "&"
           case Or        => "|"
           case Xor       => "^"

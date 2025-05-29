@@ -18,6 +18,8 @@ trait COpsLoader { self: Scala2Reader =>
       "do_$minus" -> Minus,
       "do_$times" -> Multiply,
       //
+      "do_$plus$amp" -> AddFull,
+      //
       "do_$amp"             -> And,
       "do_$bar"             -> Or,
       "do_$up"              -> Xor,

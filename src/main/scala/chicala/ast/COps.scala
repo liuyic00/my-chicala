@@ -27,6 +27,8 @@ trait COps { self: ChicalaAst =>
   case object Minus    extends CBinaryOp with TypeInferred // -
   case object Multiply extends CBinaryOp with TypeInferred // `*`
 
+  case object AddFull extends CBinaryOp with TypeInferred // +&
+
   case object And    extends CBinaryOp with TypeNotChanged // &
   case object Or     extends CBinaryOp with TypeNotChanged // |
   case object Xor    extends CBinaryOp with TypeNotChanged // ^

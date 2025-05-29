@@ -73,6 +73,8 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                 case Minus    => Right("h.bv.Minus")
                 case Multiply => Right("h.bv.Multiply")
 
+                case AddFull => Right("h.bv.AddFull")
+
                 case And    => Right("h.bv.And")
                 case Or     => Right("h.bv.Or")
                 case Xor    => Right("h.bv.Xor")
