@@ -140,7 +140,7 @@ trait MTypesLoader { self: Scala2Reader =>
     }
 
     def fromTpt(tr: Tree): Option[SType] = {
-      val tpe = autoTypeErasure(tr)
+      val tpe = autoExpand(tr)
       if (isScala2TupleType(TypeTree(tpe))) {
         Some(StTuple(tr.tpe.typeArgs.map(x => MTypeLoader.fromTpt(TypeTree(x)).get)))
       } else if ("""(.*): .*""".r.matches(tpe.toString())) {
@@ -160,13 +160,14 @@ trait MTypesLoader { self: Scala2Reader =>
         }
         Some(StArray(tparam))
       } else {
-        tpe.erasure.toString() match {
-          case "Int"                     => Some(StInt)
-          case "String"                  => Some(StString)
-          case "scala.math.BigInt"       => Some(StBigInt)
-          case "Boolean"                 => Some(StBoolean)
-          case "scala.runtime.BoxedUnit" => Some(StUnit)
-          case _                         => Some(StWrapped(tpe.toString()))
+        tpe.toString() match {
+          case x if x == "Int" || x.startsWith("Int(")         => Some(StInt)
+          case x if x == "String" || x.startsWith("String(")   => Some(StString)
+          case x if x == "Boolean" || x.startsWith("Boolean(") => Some(StBoolean)
+
+          case "Unit"              => Some(StUnit)
+          case "scala.math.BigInt" => Some(StBigInt)
+          case x                   => Some(StWrapped(x))
         }
       }
     }

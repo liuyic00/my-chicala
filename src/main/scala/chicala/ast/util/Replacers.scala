@@ -8,7 +8,7 @@ trait Replacers extends Transformers { self: ChicalaAst =>
   val global: Global
   import global._
 
-  class Replacer(replaceMap: Map[MStatement, MStatement]) extends Transformer {
+  class Replacer(val replaceMap: Map[MStatement, MStatement]) extends Transformer {
     val rMap = replaceMap.map({ case (k, v) => (k.toString() -> v) })
 
     override def transform(mStatement: MStatement): MStatement = {
@@ -16,6 +16,12 @@ trait Replacers extends Transformers { self: ChicalaAst =>
         case Some(value) => value
         case None        => super.transform(mStatement)
       }
+    }
+
+    def convergence: Replacer = {
+      val newReplaceMap = replaceMap.map({ case (k, v) => (k, transform(v)) })
+      if (newReplaceMap == replaceMap) this
+      else Replacer(newReplaceMap).convergence
     }
   }
   object Replacer {

@@ -159,6 +159,14 @@ trait Utils { self: ChiselAstCheck =>
     if (tr.tpe.toString().endsWith(".type")) tr.tpe.erasure else tr.tpe
   }
 
+  def autoExpand(tr: Tree): Type = {
+    tr.tpe match {
+      case SingleType(_, sym)                => sym.tpe
+      case x if x.toString.endsWith(".type") => x
+      case x                                 => x
+    }
+  }
+
   /** pass through all unneed AST
     *
     * @param tree
