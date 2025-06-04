@@ -430,7 +430,8 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
       assertWarning(
         rightTopologicalOrder.isRight,
         NoPosition,
-        "NEED CHECK: topological sort has cycle, may be coused by Vec"
+        s"""NEED CHECK: topological sort has cycle, may be coused by Vec
+           |  topological order: ${rightTopologicalOrder.merge.map(_.id.toPointString)}""".stripMargin
       )
 
       reorder(newBody, rightTopologicalOrder.merge.map(_.id))
@@ -580,7 +581,7 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
 
       incoming(v).foreach { u =>
         dependencyCount(u) -= 1
-        if (dependencyCount(u) == 0)
+        if (dependencyCount(u) == 0 && rest.contains(u))
           queue += u
       }
     }
