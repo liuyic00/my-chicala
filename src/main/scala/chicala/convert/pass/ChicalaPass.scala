@@ -17,7 +17,7 @@ trait ChicalaPasss { self: ChicalaAst =>
 
 trait ChicalaPassCollecttion
     extends DependencySorts
-    with BeforEmitScalas
+    with BeforeEmitScalas
     with ChicalaPeeks
     with ExpandSubModuleDefs
     with LiteralPropagations

@@ -8,11 +8,11 @@ import chicala.ast.util.{Transformers, Computes}
 import chicala.ast.util.InMStatements
 import chicala.util.Printer
 
-trait BeforEmitScalas extends ChicalaPasss with Transformers { self: ChicalaAst =>
+trait BeforeEmitScalas extends ChicalaPasss with Transformers { self: ChicalaAst =>
   val global: Global
   import global._
 
-  object BeforEmitScala extends ChicalaPass {
+  object BeforeEmitScala extends ChicalaPass {
     def apply(cClassDef: CClassDef): CClassDef = {
       cClassDef match {
         case m: ModuleDef =>
