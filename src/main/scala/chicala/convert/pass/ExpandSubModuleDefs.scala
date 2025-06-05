@@ -86,15 +86,17 @@ trait ExpandSubModuleDefs extends ChicalaPasss with Transformers with Replacers 
             tpe.updatedPhysical(Wire).updatedDriction(Undirect)
           )
         })
-
-        val outputNames = outputSignals.map({ case (name, _) =>
-          TermName(flattenName(name))
+        val outputRefs = outputSignals.map({ case (name, tpe) =>
+          SignalRef(
+            optionSelectThis(TermName(flattenName(name))),
+            tpe.updatedPhysical(Wire).updatedDriction(Undirect)
+          )
         })
 
         val subModuleRun = SubModuleRun(
           optionSelectThis(subModuleName),
           inputRefs,
-          outputNames,
+          outputRefs,
           subModuleType,
           inputSignals,
           outputSignals

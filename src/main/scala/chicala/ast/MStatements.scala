@@ -40,7 +40,7 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
   case class SubModuleRun(
       name: Tree,
       inputRefs: List[SignalRef],
-      outputNames: List[TermName],
+      outputRefs: List[SignalRef],
       moduleType: SubModule,
       inputSignals: List[(String, SignalType)],
       outputSignals: List[(String, SignalType)]

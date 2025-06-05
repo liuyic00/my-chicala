@@ -123,7 +123,7 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
 
     val relatedIdents: RelatedIdents = {
       val nameStr   = name.toString()
-      val fully     = outputNames.map(_.toString()).toSet
+      val fully     = outputRefs.map(_.relatedIdents.dependency).reduce(_ ++ _)
       val partially = Set.empty[String]
       val dependency = Set(nameStr) ++
         inputRefs.map(_.relatedIdents.dependency).reduce(_ ++ _)
