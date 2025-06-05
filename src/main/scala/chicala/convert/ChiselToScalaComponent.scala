@@ -112,8 +112,8 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                     List(
                       LiteralPropagation,
                       RegEnableApply,
-                      ChicalaPeek(packageDir, "1.beforSubModuleCall"),
-                      SubModuleCall,
+                      ChicalaPeek(packageDir, "1.beforExpandSubModuleDef"),
+                      ExpandSubModuleDef,
                       ChicalaPeek(packageDir, "2.beforSv2Simp"),
                       Sv2ChiselSimplify,
                       ChicalaPeek(packageDir, "3.beforUseVecOnly"),

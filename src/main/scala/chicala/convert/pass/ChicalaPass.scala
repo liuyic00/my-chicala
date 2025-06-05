@@ -19,9 +19,9 @@ trait ChicalaPassCollecttion
     extends DependencySorts
     with BeforEmitScalas
     with ChicalaPeeks
+    with ExpandSubModuleDefs
     with LiteralPropagations
     with RegEnableApplys
-    with SubModuleCalls
     with Sv2ChiselSimplifys
     with UseVecOnlys {
   self: ChicalaAst =>
