@@ -17,11 +17,12 @@ trait ChicalaPasss { self: ChicalaAst =>
 
 trait ChicalaPassCollecttion
     extends DependencySorts
+    with BeforEmitScalas
+    with ChicalaPeeks
     with LiteralPropagations
     with RegEnableApplys
     with SubModuleCalls
-    with UseVecOnlys
     with Sv2ChiselSimplifys
-    with ChicalaPeeks {
+    with UseVecOnlys {
   self: ChicalaAst =>
 }

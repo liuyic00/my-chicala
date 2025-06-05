@@ -119,7 +119,9 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                       UseVecOnly,
                       ChicalaPeek(packageDir, "beforSort"),
                       DependencySort,
-                      ChicalaPeek(packageDir, "sorted")
+                      ChicalaPeek(packageDir, "sorted"),
+                      BeforEmitScala,
+                      ChicalaPeek(packageDir, "beforEmit")
                     )
                   )
                   sorted
