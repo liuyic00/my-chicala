@@ -99,7 +99,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
 
             case Right(cClassDef) => {
               Format.saveToFile(
-                packageDir + s"/${name}.chicala.scala",
+                packageDir + s"/${name}.chicala.0.scala",
                 cClassDef.toString + "\n"
               )
 
@@ -112,16 +112,17 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                     List(
                       LiteralPropagation,
                       RegEnableApply,
+                      ChicalaPeek(packageDir, "1.beforSubModuleCall"),
                       SubModuleCall,
-                      ChicalaPeek(packageDir, "beforSv2Simp"),
+                      ChicalaPeek(packageDir, "2.beforSv2Simp"),
                       Sv2ChiselSimplify,
-                      ChicalaPeek(packageDir, "beforUseVecOnly"),
+                      ChicalaPeek(packageDir, "3.beforUseVecOnly"),
                       UseVecOnly,
-                      ChicalaPeek(packageDir, "beforSort"),
+                      ChicalaPeek(packageDir, "4.beforSort"),
                       DependencySort,
-                      ChicalaPeek(packageDir, "sorted"),
+                      ChicalaPeek(packageDir, "5.sorted"),
                       BeforEmitScala,
-                      ChicalaPeek(packageDir, "beforEmit")
+                      ChicalaPeek(packageDir, "6.beforEmit")
                     )
                   )
                   sorted
