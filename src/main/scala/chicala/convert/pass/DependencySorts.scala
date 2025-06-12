@@ -24,7 +24,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
     ): DirectedGraph = {
       import scala.collection.mutable
 
-      val vertexs = mutable.Set.empty[Vertex]
+      val vertexs = mutable.Set.empty[Id]
       val edges   = mutable.Set.empty[DirectedEdge]
 
       def addEdges(newEdges: Iterable[DirectedEdge], debugStatement: MStatement = EmptyMTerm): Unit = {
@@ -64,20 +64,20 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             signals: Set[String]
         ): Map[String, Set[Id]] = {
           val lastIds = signals.map(last.getOrElse(_, List())).flatten
-          addEdges(lastIds.map(x => DirectedEdge(Vertex(id), Vertex(x))))
+          addEdges(lastIds.map(x => DirectedEdge(id, x)))
 
           signals.foldLeft(last)(_.updated(_, Set(id))) // overwrite `signals` last connection id
         }
 
         statement match {
           case _: Assert | _: CApply =>
-            vertexs += Vertex(id)
+            vertexs += id
             last
           case _: Connect | _: SubModuleRun =>
-            vertexs += Vertex(id)
+            vertexs += id
             updatedLast(last, id, statement.relatedIdents.fully)
           case _: MDef =>
-            vertexs += Vertex(id)
+            vertexs += id
             updatedLast(
               last,
               id,
@@ -99,10 +99,10 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
               .foldLeft(last)(mergedTwoBranchLast(_, _))
 
           case _: STuple =>
-            vertexs += Vertex(id)
+            vertexs +=id
             last
           case sApply: SApply =>
-            vertexs += Vertex(id)
+            vertexs += id
             updatedLast(last, id, sApply.relatedIdents.fully)
           case sIf: SIf =>
             val thenLast = getVertexAndLastConnectDependcy(id :+ 1, sIf.thenp, last, false)
@@ -111,7 +111,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
           case sBlock: SBlock =>
             getVertexAndLastConnectDependcyFromList(id, sBlock.body, last, false)
           case sAssign: SAssign =>
-            vertexs += Vertex(id)
+            vertexs += id
             last
 
           case EmptyMTerm =>
@@ -153,7 +153,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 (dependency ++ c.relatedIdents.dependency)
                   .map(lastConnect.getOrElse(_, Set.empty))
                   .flatten
-                  .map(x => DirectedEdge(Vertex(id), Vertex(x))),
+                  .map(x => DirectedEdge(id, x)),
                 c
               )
             }
@@ -194,7 +194,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 .map(lastConnect.getOrElse(_, Set.empty))
                 .flatten
                 .withFilter(x => x != id)
-                .map(x => DirectedEdge(Vertex(id), Vertex(x))),
+                .map(x => DirectedEdge(id, x)),
               s
             )
           }
@@ -203,7 +203,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
               (dependency ++ s.relatedIdents.dependency)
                 .map(lastConnect.getOrElse(_, Set.empty))
                 .flatten
-                .map(x => DirectedEdge(Vertex(id), Vertex(x))),
+                .map(x => DirectedEdge(id, x)),
               s
             )
         }
@@ -247,7 +247,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 relatedIdents.usedAll
                   .map(previous.updated.getOrElse(_, Set.empty))
             ).flatten
-              .map(x => DirectedEdge(Vertex(id), Vertex(x)))
+              .map(x => DirectedEdge(id, x))
           )
         }
         def updatePrevious(relatedIdents: RelatedIdents): Previous = {
@@ -433,10 +433,10 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
         rightTopologicalOrder.isRight,
         NoPosition,
         s"""NEED CHECK: topological sort has cycle, may be coused by Vec
-           |  topological order: ${rightTopologicalOrder.merge.map(_.id.toPointString)}""".stripMargin
+           |  topological order: ${rightTopologicalOrder.merge.map(_.toPointString)}""".stripMargin
       )
 
-      reorder(newBody, rightTopologicalOrder.merge.map(_.id))
+      reorder(newBody, rightTopologicalOrder.merge)
     }
 
     def dependencySort(moduleDef: ModuleDef): ModuleDef = {
@@ -484,20 +484,17 @@ case class Id(val seq: List[Int]) extends Ordered[Id] {
 object Id {
   def empty = Id(List.empty)
 }
-case class Vertex(val id: Id) extends Ordered[Vertex] {
-  def compare(that: Vertex): Int = id.compare(that.id)
-}
-case class DirectedEdge(val from: Vertex, val to: Vertex) extends Ordered[DirectedEdge] {
+case class DirectedEdge(val from: Id, val to: Id) extends Ordered[DirectedEdge] {
   def compare(that: DirectedEdge): Int = {
     val fromCompare = from.compare(that.from)
     if (fromCompare == 0) to.compare(that.to)
     else fromCompare
   }
   override def toString(): String = {
-    s"(${from.id.toPointString} -> ${to.id.toPointString})"
+    s"(${from.toPointString} -> ${to.toPointString})"
   }
 }
-case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
+case class DirectedGraph(val vertexs: Set[Id], edges: Set[DirectedEdge]) {
 
   override def toString(): String = {
     val vertexsSetName = if (vertexs.size <= 4) "Set" else "HashSet"
@@ -508,10 +505,10 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
   }
 
   def toDot: String = {
-    val nodes = vertexs.map(_.id).map(x => s"${x.toNameString} [label=\"${x.toPointString}\"]")
+    val nodes = vertexs.map(x => s"${x.toNameString} [label=\"${x.toPointString}\"]")
     val diedges = edges.map { case DirectedEdge(from, to) =>
-      val fromNode = from.id.toNameString
-      val toNode   = to.id.toNameString
+      val fromNode = from.toNameString
+      val toNode   = to.toNameString
       s"${fromNode}->${toNode}"
     }
 
@@ -526,7 +523,7 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
   def toplogicalSort(layer: Boolean = false): (List[Id], List[Id]) = {
     import scala.collection.mutable
 
-    val incoming        = mutable.Map.from(vertexs.map(_ -> mutable.Set.empty[Vertex]))
+    val incoming        = mutable.Map.from(vertexs.map(_ -> mutable.Set.empty[Id]))
     val dependencyCount = mutable.Map.from(vertexs.map(_ -> 0))
     edges.foreach { case DirectedEdge(from, to) =>
       incoming(to) += from
@@ -538,7 +535,7 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
     while (queue.nonEmpty) {
       val thisLayer = if (layer) queue.dequeueAll else List(queue.dequeue())
       thisLayer.foreach { v =>
-        revList = v.id :: revList
+        revList = v :: revList
         incoming(v).foreach { u =>
           dependencyCount(u) -= 1
           if (dependencyCount(u) == 0)
@@ -547,7 +544,7 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
       }
     }
 
-    (revList.reverse, (vertexs.map(_.id) -- revList.toSet).toList.sorted)
+    (revList.reverse, (vertexs -- revList.toSet).toList.sorted)
   }
 
   /** Edge from `from` to `to`, `to` need to be sorted before `from`. If there
@@ -557,10 +554,10 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
     * @return
     *   Right: no cycle, Left: with cycle
     */
-  def toplogicalSortWithCycle(): Either[List[Vertex], List[Vertex]] = {
+  def toplogicalSortWithCycle(): Either[List[Id], List[Id]] = {
     import scala.collection.mutable
 
-    val incoming        = mutable.Map.from(vertexs.map(_ -> mutable.Set.empty[Vertex]))
+    val incoming        = mutable.Map.from(vertexs.map(_ -> mutable.Set.empty[Id]))
     val dependencyCount = mutable.Map.from(vertexs.map(_ -> 0))
     edges.foreach { case DirectedEdge(from, to) =>
       incoming(to) += from
@@ -568,7 +565,7 @@ case class DirectedGraph(val vertexs: Set[Vertex], edges: Set[DirectedEdge]) {
     }
     val rest = mutable.TreeSet.from(vertexs)
 
-    var revList  = List.empty[Vertex] // store reversed toplogical order
+    var revList  = List.empty[Id] // store reversed toplogical order
     val queue    = mutable.PriorityQueue.from(vertexs.filter(dependencyCount(_) == 0)).reverse
     var hasCycle = false
     while (queue.nonEmpty || rest.nonEmpty) {
