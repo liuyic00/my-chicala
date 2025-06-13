@@ -62,7 +62,8 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
   case class SFunction(vparams: List[MValDef], funcp: MTerm)                         extends STerm with SFunctionImpl
   case class SAssign(lhs: MTerm, rhs: MTerm)                                         extends STerm with SAssignImpl
 
-  case object EmptyMTerm extends MTerm with EmptyMTermImpl
+  case object EmptyMTerm          extends MTerm with EmptyMTermImpl
+  case class Comment(msg: String) extends MTerm with CommentImpl
 
   // MDef
   sealed abstract class MDef extends MStatement

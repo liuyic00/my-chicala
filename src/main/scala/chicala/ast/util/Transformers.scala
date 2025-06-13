@@ -59,7 +59,8 @@ trait Transformers { self: ChicalaAst =>
         case SFunction(vparams, body) => SFunction(vparams.map(transformT), transformT(body))
         case SAssign(lhs, rhs)        => SAssign(transformT(lhs), transformT(rhs))
 
-        case EmptyMTerm => EmptyMTerm
+        case EmptyMTerm   => EmptyMTerm
+        case Comment(msg) => Comment(msg)
 
         // CValDef
         case SubModuleDef(name, tpe, args) =>

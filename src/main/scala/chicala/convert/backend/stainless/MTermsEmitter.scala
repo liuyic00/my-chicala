@@ -42,6 +42,7 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         case s: SFunction    => sFunctionCL(s)
         case s: SAssign      => sAssignCL(s)
         case EmptyMTerm      => CodeLines("()")
+        case Comment(msg)    => CodeLines(s"// $msg")
         case _               => CodeLines(TODO("CL", mTerm))
       }
 

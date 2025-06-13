@@ -28,6 +28,11 @@ trait MTermImpls { self: ChicalaAst =>
     val relatedIdents = RelatedIdents.empty
   }
 
+  trait CommentImpl {
+    val tpe           = EmptyMType
+    val relatedIdents = RelatedIdents.empty
+  }
+
   /** related idents, include val and def
     *
     * @param fully

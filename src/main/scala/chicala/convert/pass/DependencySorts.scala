@@ -477,7 +477,11 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
            |  topological order: ${rightTopologicalOrder.merge.map(_.toPointString)}""".stripMargin
       )
 
-      reorder(newBody, rightTopologicalOrder.merge)
+      rightTopologicalOrder match {
+        case Right(order) => reorder(newBody, order)
+        case Left(order) =>
+          Comment("chicala[NEEDCHECK]: topological sort has cycle") :: reorder(newBody, order)
+      }
     }
 
     def dependencySort(moduleDef: ModuleDef): ModuleDef = {
