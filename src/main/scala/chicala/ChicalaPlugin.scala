@@ -14,10 +14,11 @@ object ChicalaPlugin {
 }
 
 object ChicalaConfig {
-  var simulation    = false
-  var whitelist     = List.empty[String]
-  var useVecOnly    = false
-  var unbreakBlocks = false
+  var simulation           = false
+  var whitelist            = List.empty[String]
+  var useVecOnly           = false
+  var unbreakBlocks        = false
+  var disableNeedCheckWarn = false
 }
 
 class ChicalaPlugin(val global: Global) extends Plugin {
@@ -52,6 +53,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
         ChicalaConfig.useVecOnly = true
       } else if (option == "unbreakBlocks") {
         ChicalaConfig.unbreakBlocks = true
+      } else if (option == "disableNeedCheckWarn") {
+        ChicalaConfig.disableNeedCheckWarn = true
       } else {
         error("Option not understood: " + option)
       }
@@ -68,6 +71,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`. [false]
        |  -P:chicala:unbreakBlocks
        |                               Do not break blocks in the dependency sort. [false]
+       |  -P:chicala:disableNeedCheckWarn
+       |                               Do not show warning about need to check the generated code. [false]
        |""".stripMargin
   )
 }

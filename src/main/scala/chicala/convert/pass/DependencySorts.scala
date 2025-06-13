@@ -196,6 +196,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             val dependencys = dependency ++ s.relatedIdents.dependency
             val fullys      = s.relatedIdents.fully
             val intersect   = dependencys.intersect(fullys)
+            // FIXME: disable by disableNeedCheckWarn? where to insert need check comment?
             assertWarning(
               intersect.isEmpty,
               NoPosition,
@@ -470,17 +471,19 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
       val newBody               = body.map(reorderSubField(_))
       val dependencyGraph       = getDependencyGraph(newBody, isModuleTop)
       val rightTopologicalOrder = dependencyGraph.toplogicalSortWithCycle()
-      assertWarning(
-        rightTopologicalOrder.isRight,
-        NoPosition,
-        s"""NEED CHECK: topological sort has cycle, may be coused by Vec
+      if (!ChicalaConfig.disableNeedCheckWarn) {
+        assertWarning(
+          rightTopologicalOrder.isRight,
+          NoPosition,
+          s"""NEED CHECK: topological sort has cycle, may be coused by Vec
            |  topological order: ${rightTopologicalOrder.merge.map(_.toPointString)}""".stripMargin
-      )
+        )
+      }
 
       rightTopologicalOrder match {
         case Right(order) => reorder(newBody, order)
         case Left(order) =>
-          Comment("chicala[NEEDCHECK]: topological sort has cycle") :: reorder(newBody, order)
+          Comment("chicala[NEEDCHECK]: topological sort has cycle, may be coused by Vec") :: reorder(newBody, order)
       }
     }
 
