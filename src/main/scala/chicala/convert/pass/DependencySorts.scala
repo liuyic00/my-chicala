@@ -6,6 +6,7 @@ import scala.tools.nsc.Global
 import chicala.util.Format
 import chicala.ast.ChicalaAst
 import chicala.ast.util.Transformers
+import chicala.ChicalaConfig
 
 trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst =>
   val global: Global
@@ -70,10 +71,12 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
         }
 
         statement match {
-          case _: Assert | _: CApply =>
+          // No update last:
+          case _: Assert | _: CApply | _: STuple | _: SAssign =>
             vertexs += id
             last
-          case _: Connect | _: SubModuleRun =>
+          // Update last:
+          case _: Connect | _: SubModuleRun | _: SApply =>
             vertexs += id
             updatedLast(last, id, statement.relatedIdents.fully)
           case _: MDef =>
@@ -87,6 +90,13 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
               else
                 statement.relatedIdents.fully
             )
+
+          // Breakable blocks:
+          // unbreak block
+          case _: SIf | _: SBlock | _: When | _: Switch if ChicalaConfig.unbreakBlocks =>
+            vertexs += id
+            updatedLast(last, id, statement.relatedIdents.fully ++ statement.relatedIdents.partially)
+          // break block
           case w: When =>
             val whenLast  = getVertexAndLastConnectDependcy(id :+ 1, w.whenp, last, false)
             val otherLast = getVertexAndLastConnectDependcy(id :+ 2, w.otherp, last, false)
@@ -97,23 +107,14 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 .map(_._2)
             ).map({ case (subId, branchp) => getVertexAndLastConnectDependcy(subId, branchp, last, false) })
               .foldLeft(last)(mergedTwoBranchLast(_, _))
-
-          case _: STuple =>
-            vertexs +=id
-            last
-          case sApply: SApply =>
-            vertexs += id
-            updatedLast(last, id, sApply.relatedIdents.fully)
           case sIf: SIf =>
             val thenLast = getVertexAndLastConnectDependcy(id :+ 1, sIf.thenp, last, false)
             val elseLast = getVertexAndLastConnectDependcy(id :+ 2, sIf.elsep, last, false)
             mergedTwoBranchLast(thenLast, elseLast)
           case sBlock: SBlock =>
             getVertexAndLastConnectDependcyFromList(id, sBlock.body, last, false)
-          case sAssign: SAssign =>
-            vertexs += id
-            last
 
+          // Other statements:
           case EmptyMTerm =>
             last
           case _ =>
@@ -146,6 +147,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
           dependency: Set[String]
       ): Unit = {
         statement match {
+          // Connect:
           case c: Connect =>
             val left = c.relatedIdents.fully.head
             if (lastConnect(left).contains(id)) { // only valid connection
@@ -157,6 +159,17 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 c
               )
             }
+          // Breakable blocks:
+          // unbreak block
+          case _: When | _: SIf | _: SBlock | _: Switch if ChicalaConfig.unbreakBlocks =>
+            addEdges(
+              (dependency ++ statement.relatedIdents.dependency)
+                .map(lastConnect.getOrElse(_, Set.empty))
+                .flatten
+                .map(x => DirectedEdge(id, x)),
+              statement
+            )
+          // break block
           case w: When =>
             val newDependency = dependency ++ w.cond.relatedIdents.dependency
             getConnectDependcy(id :+ 1, w.whenp, lastConnect, newDependency)
@@ -176,6 +189,8 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             }
           case sBlock: SBlock =>
             getConnectDependcyFromList(id, sBlock.body, lastConnect, dependency)
+
+          // Other statements:
           case EmptyMTerm =>
           case s @ SApply(_, List(f: SFunction), _) => {
             val dependencys = dependency ++ s.relatedIdents.dependency
@@ -260,6 +275,13 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
         }
 
         statement match {
+          // Breakable blocks:
+          // unbreak block
+          case _: When | _: SIf | _: SBlock | _: Switch if ChicalaConfig.unbreakBlocks =>
+            val relatedIdents = statement.relatedIdents ++ RelatedIdents.used(used)
+            addDependcy(relatedIdents)
+            updatePrevious(relatedIdents)
+          // break block
           case sIf: SIf =>
             val ud           = used ++ sIf.cond.relatedIdents.usedAll
             val thenPrevious = getScalaValDependcy(id :+ 1, sIf.thenp, previous, ud)
@@ -272,6 +294,8 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             val whenPrevious = getScalaValDependcy(id :+ 1, when.whenp, previous, ud)
             val elsePrevious = getScalaValDependcy(id :+ 2, when.otherp, whenPrevious, ud)
             elsePrevious
+
+          // Other statements:
           case EmptyMTerm =>
             previous
           case x =>
@@ -344,6 +368,12 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
           case Nil | List(Id(Nil)) => List(mStatement)
           case _ =>
             mStatement match {
+              case _: When | _: SIf | _: Switch | _: SBlock if ChicalaConfig.unbreakBlocks =>
+                reporter.error(
+                  NoPosition,
+                  s"Should not break blocks, in ToplogicalSort.doReorder: ${mStatement}\n${restList}"
+                )
+                List()
               case w: When =>
                 val merged = mergeId(restList)
                 val parts  = splitParts(merged, 2)
@@ -366,10 +396,10 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
                 parts.map(_.toMap).map { mergedOne =>
                   // FIXME: use MTerm, use SBlock wrap SDef
                   val thenp =
-                    if (mergedOne.contains(1)) doReorder(sIf.thenp, mergedOne(1)).head.asInstanceOf[MTerm]
+                    if (mergedOne.contains(1)) doReorder(sIf.thenp, mergedOne(1)).head
                     else EmptyMTerm
                   val elsep =
-                    if (mergedOne.contains(2)) doReorder(sIf.elsep, mergedOne(2)).head.asInstanceOf[MTerm]
+                    if (mergedOne.contains(2)) doReorder(sIf.elsep, mergedOne(2)).head
                     else EmptyMTerm
                   SIf(sIf.cond, thenp, elsep, sIf.tpe)
                 }
@@ -417,6 +447,17 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
           s.copy(defp = reorderTopSBlockOrOther(defp))
         case f @ SFunction(_, funcp) =>
           f.copy(funcp = reorderTopSBlockOrOther(funcp).asInstanceOf[MTerm])
+        case i @ SIf(cond, thenp, elsep, tpe) if ChicalaConfig.unbreakBlocks =>
+          SIf(cond, reorderTopSBlockOrOther(thenp), reorderTopSBlockOrOther(elsep), tpe)
+        case b @ SBlock(body, tpe) if ChicalaConfig.unbreakBlocks =>
+          SBlock(reorderTopList(body, false), tpe)
+        case w @ When(cond, whenp, otherp, hasElseWhen) if ChicalaConfig.unbreakBlocks =>
+          When(cond, reorderTopSBlockOrOther(whenp), reorderTopSBlockOrOther(otherp), hasElseWhen)
+        case s @ Switch(cond, branchs) if ChicalaConfig.unbreakBlocks =>
+          val newBranchs = branchs.map { case (v, body) =>
+            (v, reorderTopSBlockOrOther(body))
+          }
+          Switch(cond, newBranchs)
 
         case x => super.transform(x)
       }

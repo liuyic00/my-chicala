@@ -14,9 +14,10 @@ object ChicalaPlugin {
 }
 
 object ChicalaConfig {
-  var simulation = false
-  var whitelist  = List.empty[String]
-  var useVecOnly = false
+  var simulation    = false
+  var whitelist     = List.empty[String]
+  var useVecOnly    = false
+  var unbreakBlocks = false
 }
 
 class ChicalaPlugin(val global: Global) extends Plugin {
@@ -49,6 +50,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
         ChicalaConfig.whitelist.foreach(s => inform(" " + s))
       } else if (option == "useVecOnly") {
         ChicalaConfig.useVecOnly = true
+      } else if (option == "unbreakBlocks") {
+        ChicalaConfig.unbreakBlocks = true
       } else {
         error("Option not understood: " + option)
       }
@@ -63,6 +66,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Only modules in the whitelist will be processed, not set to process all modules. [not set]
        |  -P:chicala:useVecOnly
        |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`. [false]
+       |  -P:chicala:unbreakBlocks
+       |                               Do not break blocks in the dependency sort. [false]
        |""".stripMargin
   )
 }

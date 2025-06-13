@@ -54,7 +54,7 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
   case class SBlock(body: List[MStatement], tpe: MType)                              extends STerm with SBlockImpl
   case class SLiteral(value: Any, tpe: MType)                                        extends STerm with SLiteralImpl
   case class SIdent(name: TermName, tpe: MType)                                      extends STerm with SIdentImpl
-  case class SIf(cond: STerm, thenp: MTerm, elsep: MTerm, tpe: MType)                extends STerm with SIfImpl
+  case class SIf(cond: STerm, thenp: MStatement, elsep: MStatement, tpe: MType)      extends STerm with SIfImpl
   case class SMatch(selector: MTerm, cases: List[SCaseDef], tpe: MType)              extends STerm with SMatchImpl
   case class SCaseDef(tupleNames: List[(TermName, MType)], casep: MTerm, tpe: MType) extends STerm with SCaseDefImpl
   case class STuple(args: List[MTerm], tpe: StTuple)                                 extends STerm with STupleImpl
