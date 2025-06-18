@@ -18,6 +18,14 @@ trait MTermImpls { self: ChicalaAst =>
 
   trait MTermImpl { self: MTerm =>
     def tpe: MType
+    def append(that: MStatement): SBlock = {
+      this match {
+        case SBlock(body, tpe) =>
+          SBlock(body :+ that, that.tpe)
+        case x =>
+          SBlock(List(x, that), that.tpe)
+      }
+    }
   }
   object MTerm {
     def empty = EmptyMTerm

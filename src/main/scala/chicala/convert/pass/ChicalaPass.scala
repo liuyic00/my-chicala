@@ -23,6 +23,7 @@ trait ChicalaPassCollecttion
     with LiteralPropagations
     with RegEnableApplys
     with Sv2ChiselSimplifys
+    with UseRecursiveFuncs
     with UseVecOnlys {
   self: ChicalaAst =>
 }
