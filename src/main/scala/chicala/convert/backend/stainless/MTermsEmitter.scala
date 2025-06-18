@@ -347,12 +347,12 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         )
         val regs = s"${moduelFullName}Regs()"
 
-        // `outputName` used in `val (outputName, _) = ...`, can not start with
-        // upper case. Add `t$` to avoid
-        val outputName = s"t$$${n}TransOutputs"
+        // `tmpOutputGroupName` used in `val (tmpOutputGroupName, _) = ...`, can
+        // not start with upper case. Add `t$` to avoid
+        val tmpOutputGroupName = s"t$$${n}TransOutputs"
 
         CodeLines(
-          s"val (${outputName}, _) = ${n}.trans(",
+          s"val (${tmpOutputGroupName}, _) = ${n}.trans(",
           CodeLines(
             inputs.concatLastLine(","),
             regs
@@ -360,8 +360,10 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
           ")"
         ) ++ (
           subModuleRun.outputRefs
-            .zip(subModuleRun.outputSignals)
-            .map({ case (outputRef, (name, _)) => s"${outputRef.toCode} = ${outputName}.${name}" })
+            .zip(subModuleRun.outputIos)
+            .map({ case (outputRef, (outputIoName, _)) =>
+              s"${outputRef.toCode} = ${tmpOutputGroupName}.${outputIoName}"
+            })
             .toCodeLines
         )
       }

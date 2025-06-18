@@ -82,14 +82,14 @@ trait BeforeEmitScalas extends ChicalaPasss with Transformers { self: ChicalaAst
       override def transform(mStatement: MStatement): MStatement = {
         mStatement match {
           case SubModuleDef(name, tpe, args) => SubModuleDef(name, tpe, args)
-          case SubModuleRun(name, inputRefs, outputRefs, moduleType, inputSignals, outputSignals) =>
+          case SubModuleRun(name, inputRefs, outputRefs, moduleType, inputIos, outputIos) =>
             SubModuleRun(
               name,
               inputRefs,
               outputRefs,
               moduleType,
-              inputSignals,
-              outputSignals.map { case (name, tpe) =>
+              inputIos,
+              outputIos.map { case (name, tpe) =>
                 (name.head.toLower +: name.tail, tpe)
               }
             )

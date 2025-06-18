@@ -69,8 +69,8 @@ trait ExpandSubModuleDefs extends ChicalaPasss with Transformers with Replacers 
         val signals = subModuleIoDefs
           .flatMap(ioDef => ioDef.tpe.flatten(ioDef.name.toString()))
           .map { case (name, tpe) => (name, argsReplaceIn.transformTypeT(tpe)) }
-        val inputSignals  = signals.filter({ case (name, tpe) => tpe.isInput })
-        val outputSignals = signals.filter({ case (name, tpe) => tpe.isOutput })
+        val inputIos  = signals.filter({ case (name, tpe) => tpe.isInput })
+        val outputIos = signals.filter({ case (name, tpe) => tpe.isOutput })
 
         val ioSigDefs = signals.map({ case (name, tpe) =>
           WireDef(
@@ -80,13 +80,13 @@ trait ExpandSubModuleDefs extends ChicalaPasss with Transformers with Replacers 
           )
         })
 
-        val inputRefs = inputSignals.map({ case (name, tpe) =>
+        val inputRefs = inputIos.map({ case (name, tpe) =>
           SignalRef(
             optionSelectThis(TermName(flattenName(name))),
             tpe.updatedPhysical(Wire).updatedDriction(Undirect)
           )
         })
-        val outputRefs = outputSignals.map({ case (name, tpe) =>
+        val outputRefs = outputIos.map({ case (name, tpe) =>
           SignalRef(
             optionSelectThis(TermName(flattenName(name))),
             tpe.updatedPhysical(Wire).updatedDriction(Undirect)
@@ -98,8 +98,8 @@ trait ExpandSubModuleDefs extends ChicalaPasss with Transformers with Replacers 
           inputRefs,
           outputRefs,
           subModuleType,
-          inputSignals,
-          outputSignals
+          inputIos,
+          outputIos
         )
 
         val replaceMap = {

@@ -26,14 +26,14 @@ trait Transformers { self: ChicalaAst =>
         case Assert(exp) => Assert(transformT(exp))
         case Switch(cond, branchs) =>
           Switch(transformT(cond), branchs.map(x => (transformT(x._1), transform(x._2))))
-        case SubModuleRun(name, inputRefs, outputRefs, moduleType, inputSignals, outputSignals) =>
+        case SubModuleRun(name, inputRefs, outputRefs, moduleType, inputIos, outputIos) =>
           SubModuleRun(
             name,
             inputRefs.map(transformT),
             outputRefs.map(transformT),
             transformTypeT(moduleType),
-            inputSignals.map({ case (n, t) => (n, transformTypeT(t)) }),
-            outputSignals.map({ case (n, t) => (n, transformTypeT(t)) })
+            inputIos.map({ case (n, t) => (n, transformTypeT(t)) }),
+            outputIos.map({ case (n, t) => (n, transformTypeT(t)) })
           )
 
         // STerm

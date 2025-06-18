@@ -42,8 +42,8 @@ trait MStatements extends MTermImpls with CTermImpls with STermImpls with MDefIm
       inputRefs: List[SignalRef],
       outputRefs: List[SignalRef],
       moduleType: SubModule,
-      inputSignals: List[(String, SignalType)],
-      outputSignals: List[(String, SignalType)]
+      inputIos: List[(String, SignalType)],
+      outputIos: List[(String, SignalType)]
   ) extends CTerm
       with SubModuleRunImpl
 
