@@ -196,15 +196,17 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             val dependencys = dependency ++ s.relatedIdents.dependency
             val fullys      = s.relatedIdents.fully
             val intersect   = dependencys.intersect(fullys)
-            // FIXME: disable by disableNeedCheckWarn? where to insert need check comment?
-            assertWarning(
-              intersect.isEmpty,
-              NoPosition,
-              s"NEED CHECK: function has self dependency inside, Chicala cannot solve automatically:\n" +
-                s"  dependency from context: ${dependency}\n" +
-                s"  direct dependency: ${s.relatedIdents.dependency}\n" +
-                s"  fully connected: ${fullys}"
-            )
+            if (!ChicalaConfig.disableNeedCheckWarn) {
+              // add NEEDCHECK comment in pass BeforeEmitScala
+              assertWarning(
+                intersect.isEmpty,
+                NoPosition,
+                s"NEED CHECK: function has self dependency inside, Chicala cannot solve automatically:\n" +
+                  s"  dependency from context: ${dependency}\n" +
+                  s"  direct dependency: ${s.relatedIdents.dependency}\n" +
+                  s"  fully connected: ${fullys}"
+              )
+            }
             addEdges(
               dependencys
                 .map(lastConnect.getOrElse(_, Set.empty))
@@ -475,7 +477,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
         assertWarning(
           rightTopologicalOrder.isRight,
           NoPosition,
-          s"""NEED CHECK: topological sort has cycle, may be coused by Vec
+          s"""NEED CHECK: topological sort has cycle, maybe coused by Vec
            |  topological order: ${rightTopologicalOrder.merge.map(_.toPointString)}""".stripMargin
         )
       }
@@ -483,7 +485,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
       rightTopologicalOrder match {
         case Right(order) => reorder(newBody, order)
         case Left(order) =>
-          Comment("chicala[NEEDCHECK]: topological sort has cycle, may be coused by Vec") :: reorder(newBody, order)
+          Comment("chicala[NEEDCHECK]: topological sort has cycle, maybe coused by Vec") :: reorder(newBody, order)
       }
     }
 
