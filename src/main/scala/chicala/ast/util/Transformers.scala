@@ -14,7 +14,7 @@ trait Transformers { self: ChicalaAst =>
       mStatement match {
         // CTerm
         case Lit(litExp, tpe)     => Lit(transformT(litExp), transformTypeT(tpe))
-        case SignalRef(name, tpe) => SignalRef(name, transformTypeT(tpe))
+        case SignalRef(name, tpe) => SignalRef(transformTree(name), transformTypeT(tpe))
         case CApply(op, operands) => CApply(op, operands.map(transformT))
 
         case Connect(left, expr) => Connect(transformT(left), transformT(expr))
@@ -128,6 +128,13 @@ trait Transformers { self: ChicalaAst =>
     def transformCSize(cSize: CSize): CSize = cSize match {
       case KnownSize(width) => KnownSize(transformT(width))
       case _                => cSize
+    }
+
+    // TODO: sould use tree.transform() instead of this
+    def transformTree(tree: Tree): Tree = tree match {
+      case Select(qualifier, name: TermName) =>
+        Select(transformTree(qualifier), transformTermName(name))
+      case _ => tree
     }
 
     def transformT[T <: MStatement](statement: T): T = transform(statement).asInstanceOf[T]

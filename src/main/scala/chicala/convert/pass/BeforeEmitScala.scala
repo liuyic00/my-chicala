@@ -16,13 +16,15 @@ trait BeforeEmitScalas extends ChicalaPasss with Transformers { self: ChicalaAst
     def apply(cClassDef: CClassDef): CClassDef = {
       cClassDef match {
         case m: ModuleDef =>
+          val nameCheck = new NameCheck(m.name)
           m.copy(body =
             m.body.map(s =>
               List(
                 // SubModuleRun in ModuleDef body do not need SBlock
                 subModuleRunWrapInSBlock.superTransform(_),
                 // add needcheck comment
-                addNeedcheckComment(_)
+                addNeedcheckComment(_),
+                nameCheck(_)
               ).foldLeft(s) { (s, f) => f(s) }
             )
           )
@@ -72,6 +74,40 @@ trait BeforeEmitScalas extends ChicalaPasss with Transformers { self: ChicalaAst
         }
       }
 
+    }
+
+    /** Check and modify variable names */
+    class NameCheck(moduleName: TypeName) extends Transformer {
+      var replaceMap: Map[String, Tree] = Map.empty
+      override def transform(mStatement: MStatement): MStatement = {
+        mStatement match {
+          case SubModuleDef(name, tpe, args) => SubModuleDef(name, tpe, args)
+          case SubModuleRun(name, inputRefs, outputRefs, moduleType, inputSignals, outputSignals) =>
+            SubModuleRun(
+              name,
+              inputRefs,
+              outputRefs,
+              moduleType,
+              inputSignals,
+              outputSignals.map { case (name, tpe) =>
+                (name.head.toLower +: name.tail, tpe)
+              }
+            )
+          // TODO: add RegDef
+          case IoDef(name, tpe) =>
+            if (name.toString().head.isLower) {
+              IoDef(name, tpe)
+            } else {
+              val newName = TermName(name.toString().head.toLower +: name.toString().tail)
+              replaceMap += (Select(This(moduleName), name).toString() -> Select(This(moduleName), newName))
+              IoDef(newName, tpe)
+            }
+          case _ => super.transform(mStatement)
+        }
+      }
+      override def transformTree(tree: Tree): Tree = {
+        replaceMap.getOrElse(tree.toString(), super.transformTree(tree))
+      }
     }
   }
 }
