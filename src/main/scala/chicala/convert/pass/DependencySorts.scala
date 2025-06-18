@@ -197,7 +197,7 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
             val fullys      = s.relatedIdents.fully
             val intersect   = dependencys.intersect(fullys)
             if (!ChicalaConfig.disableNeedCheckWarn) {
-              // add NEEDCHECK comment in pass BeforeEmitScala
+              // add NEEDCHECK comment in pass AfterSort
               assertWarning(
                 intersect.isEmpty,
                 NoPosition,
