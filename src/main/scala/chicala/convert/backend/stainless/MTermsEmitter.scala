@@ -128,13 +128,18 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
           case _: SInt => "S"
           case _: Bool => "B"
         }
-        (lit.tpe match {
-          case _: Bool                          => InferredSize
-          case UInt(width, physical, direction) => width
-          case SInt(width, physical, direction) => width
-        }) match {
-          case KnownSize(width) => s"Lit(${literal}, ${width.toCode}).${tpe}"
-          case _                => s"Lit(${literal}).${tpe}"
+        val width = lit.tpe match {
+          case _: Bool           => InferredSize
+          case UInt(width, _, _) => width
+          case SInt(width, _, _) => width
+        }
+        lit.tpe match {
+          case _: Bool if (ChicalaConfig.useBoolean) => literal
+          case _ =>
+            width match {
+              case KnownSize(width) => s"Lit(${literal}, ${width.toCode}).${tpe}"
+              case _                => s"Lit(${literal}).${tpe}"
+            }
         }
       }
       private def assertCode(assert: Assert): String = {
@@ -290,6 +295,8 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                       CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
                     else
                       CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
+                  case _: Bool if ChicalaConfig.useBoolean =>
+                    CodeLines(s"${left} = ${expr.toCode}")
                   case _ =>
                     if (expr.lines.head.startsWith("if"))
                       CodeLines.warpToOneLine(

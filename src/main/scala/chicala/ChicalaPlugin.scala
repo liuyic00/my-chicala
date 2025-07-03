@@ -18,6 +18,7 @@ object ChicalaConfig {
   var whitelist            = List.empty[String]
   var useRecursiveFunc     = false
   var useVecOnly           = false
+  var useBoolean           = false
   var unbreakBlocks        = false
   var disableNeedCheckWarn = false
 }
@@ -54,6 +55,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
         ChicalaConfig.useRecursiveFunc = true
       } else if (option == "useVecOnly") {
         ChicalaConfig.useVecOnly = true
+      } else if (option == "useBoolean") {
+        ChicalaConfig.useBoolean = true
       } else if (option == "unbreakBlocks") {
         ChicalaConfig.unbreakBlocks = true
       } else if (option == "disableNeedCheckWarn") {
@@ -71,13 +74,15 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |  -P:chicala:whitelist:<package.class>;<package.class>;...
        |                               Only modules in the whitelist will be processed, not set to process all modules. [not set]
        |  -P:chicala:useRecursiveFunc
-       |                               Replace `foreach` to recersive function. [false]
+       |                               Replace `foreach` to recersive function.
        |  -P:chicala:useVecOnly
-       |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`. [false]
+       |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`.
+       |  -P:chicala:useBoolean
+       |                               Replace `Bool` to `Boolean`.
        |  -P:chicala:unbreakBlocks
-       |                               Do not break blocks in the dependency sort. [false]
+       |                               Do not break blocks in the dependency sort.
        |  -P:chicala:disableNeedCheckWarkk
-       |                               Do not show warning about need to check the generated code. [false]
+       |                               Do not show warning about need to check the generated code.
        |""".stripMargin
   )
 }

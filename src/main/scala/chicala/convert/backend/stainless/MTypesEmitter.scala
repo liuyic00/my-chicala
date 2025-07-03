@@ -17,7 +17,7 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
           cType match {
             case _: UInt => "UInt"
             case _: SInt => "SInt"
-            case _: Bool => "Bool"
+            case _: Bool => if (ChicalaConfig.useBoolean) "Boolean" else "Bool"
             case Vec(_, _, tparam) =>
               if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
@@ -45,7 +45,7 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
     implicit class SignalTypeEmitter(tpe: SignalType) {
       def toCode_init(name: String): String = s"var ${name} = ${toCode_empty}"
       def toCode_empty: String = tpe match {
-        case Bool(physical, direction)                   => s"${tpe.toCode}.empty()"
+        case Bool(physical, direction) => if (ChicalaConfig.useBoolean) "false" else s"${tpe.toCode}.empty()"
         case UInt(width: KnownSize, physical, direction) => s"${tpe.toCode}.empty(${width.width.toCode})"
         case SInt(width: KnownSize, physical, direction) => s"${tpe.toCode}.empty(${width.width.toCode})"
         case Vec(size: KnownSize, physical, tparam) =>
