@@ -6,10 +6,17 @@ trait ReaderInfos { this: Scala2Reader =>
   val global: Global
   import global._
 
+  case class ProcessLater(
+      tree: Tree,
+      packageName: String,
+      fullName: String,
+      depenName: String
+  )
+
   case class ReaderInfo(
       moduleDefs: Map[String, ModuleDef],
       bundleDefs: Map[String, BundleDef],
-      todos: List[(Tree, String)],
+      todos: List[ProcessLater],
       dependentClassNotDef: Boolean
   ) {
     def settedDependentClassNotDef  = copy(dependentClassNotDef = true)
@@ -20,7 +27,8 @@ trait ReaderInfos { this: Scala2Reader =>
       copy(moduleDefs = moduleDefs + (moduleDef.fullName -> moduleDef))
     def addedBundleDef(bundleDef: BundleDef) =
       copy(bundleDefs = bundleDefs + (bundleDef.fullName -> bundleDef))
-    def addedTodo(tree: Tree, packageName: String) = copy(todos = todos.appended((tree, packageName)))
+    def addedTodo(p: ProcessLater) =
+      copy(todos = todos.appended(p))
 
     def needExit = isDependentClassNotDef
   }

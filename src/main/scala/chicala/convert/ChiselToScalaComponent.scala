@@ -55,7 +55,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
     override def run(): Unit = {
       super.run()
       processTodos()
-      readerInfo.todos.foreach { case (t, pname) => reporter.error(t.pos, "This class not processed") }
+      readerInfo.todos.foreach { p => reporter.error(p.tree.pos, "This class not processed") }
     }
 
     def apply(unit: CompilationUnit): Unit = {
@@ -93,9 +93,11 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
           eitherDef match {
             case Left(Failed) =>
               reporter.error(tree.pos, "Unknown error in ChiselToScalaPhase #1")
-            case Left(DependentClassNotDef(name)) =>
-              inform(s"Dependent Class not defined: $name, process later")
-              readerInfo = readerInfo.addedTodo(tree, packageName)
+            case Left(DependentClassNotDef(depenName)) =>
+              inform(s"Dependent Class not defined: $depenName, process later")
+              readerInfo = readerInfo.addedTodo(
+                ProcessLater(tree, packageName, s"$packageName.$name", depenName)
+              )
 
             case Right(cClassDef) => {
               Format.saveToFile(
@@ -158,15 +160,36 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
     }
 
     def processTodos(): Unit = {
-      inform(s"processTodos: ${readerInfo.todos.size}")
+
+      /** simple version of topological sort */
+      def sortTodos(todos: List[ProcessLater]): List[ProcessLater] = {
+        var needProcess: Set[String] = todos.map(_.fullName).toSet
+        var depenBy                  = todos.groupBy(_.depenName)
+        var newTodos                 = List.empty[ProcessLater]
+        while (depenBy.nonEmpty) {
+          var processed = depenBy.keySet -- needProcess
+          if (processed.isEmpty) {
+            // has circular dependency, just return all todos
+            processed = depenBy.keySet
+          }
+          processed.foreach { name =>
+            newTodos ++= depenBy(name)
+            needProcess --= depenBy(name).map(_.fullName)
+            depenBy -= name
+          }
+        }
+        newTodos
+      }
+
       var lastNum = readerInfo.todos.size + 1
       while (readerInfo.todos.size > 0 && lastNum > readerInfo.todos.size) {
-        val todos = readerInfo.todos
-        lastNum = todos.size
+        val todos = sortTodos(readerInfo.todos)
         readerInfo = readerInfo.copy(todos = List.empty)
-        todos.foreach { case (t, pname) =>
-          inform(s"processTodos: ${t.asInstanceOf[ClassDef].name} in $pname")
-          applyOnTree(t, pname)
+        lastNum = todos.size
+        inform(s"processTodos: ${lastNum} remaining")
+        todos.foreach { p =>
+          inform(s"processTodos: ${p.tree.asInstanceOf[ClassDef].name} in ${p.packageName}")
+          applyOnTree(p.tree, p.packageName)
         }
       }
     }
