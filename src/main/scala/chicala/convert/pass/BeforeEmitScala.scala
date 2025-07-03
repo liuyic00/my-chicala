@@ -4,7 +4,7 @@ import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
 
-import chicala.ast.util.{Transformers, Computes}
+import chicala.ast.util.Transformers
 import chicala.ast.util.InMStatements
 import chicala.util.Printer
 

@@ -22,6 +22,7 @@ trait ChicalaPassCollecttion
     with ChicalaPeeks
     with ExpandSubModuleDefs
     with LiteralPropagations
+    with ReduceAsTypeOfs
     with RegEnableApplys
     with Sv2ChiselSimplifys
     with UseRecursiveFuncs

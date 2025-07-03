@@ -119,15 +119,17 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
                       ExpandSubModuleDef,
                       ChicalaPeek(packageDir, "2.beforeSv2Simp"),
                       Sv2ChiselSimplify,
-                      ChicalaPeek(packageDir, "3.beforeUseVecOnly"),
+                      ChicalaPeek(packageDir, "3.beforeReduceAsTypeOf"),
+                      ReduceAsTypeOf,
+                      ChicalaPeek(packageDir, "4.beforeUseVecOnly"),
                       UseVecOnly,
-                      ChicalaPeek(packageDir, "4.beforeSort"),
+                      ChicalaPeek(packageDir, "5.beforeSort"),
                       DependencySort,
-                      ChicalaPeek(packageDir, "5.sorted"),
+                      ChicalaPeek(packageDir, "6.sorted"),
                       AfterSort,
                       UseRecursiveFunc,
                       BeforeEmitScala,
-                      ChicalaPeek(packageDir, "6.beforeEmit")
+                      ChicalaPeek(packageDir, "7.beforeEmit")
                     )
                   )
                   sorted

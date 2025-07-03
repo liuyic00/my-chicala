@@ -30,8 +30,8 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
         case _               => TODO("Code", mTerm)
       }
       def toCodeLines: CodeLines = mTerm match {
-        case _: SignalRef | _: CApply | _: Assert | _: STuple | _: SLiteral | _: SApply | _: SIdent | _: SSelect |
-            _: Lit | _: SLib =>
+        case _: SignalRef | _: CApply | _: Assert | _: GenCType | _: STuple | _: SLiteral | _: SApply | _: SIdent |
+            _: SSelect | _: Lit | _: SLib =>
           CodeLines(mTerm.toCode)
         case c: Connect      => connectCL(c)
         case w: When         => whenCL(w, false)
