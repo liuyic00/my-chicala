@@ -81,7 +81,7 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Replace `Bool` to `Boolean`.
        |  -P:chicala:unbreakBlocks
        |                               Do not break blocks in the dependency sort.
-       |  -P:chicala:disableNeedCheckWarkk
+       |  -P:chicala:disableNeedCheckWarn
        |                               Do not show warning about need to check the generated code.
        |""".stripMargin
   )
