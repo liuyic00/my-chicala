@@ -30,9 +30,14 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
         // TypeChanged
         case Slice =>
           operands match {
-            case x :: i :: Nil => Bool.empty
+            case x :: i :: Nil =>
+              Bool.empty
             case x :: l :: r :: Nil =>
-              UInt(KnownSize(leftRightSize(l.asInstanceOf[STerm], r.asInstanceOf[STerm])), Node, Undirect)
+              val knownSize = KnownSize(leftRightSize(l.asInstanceOf[STerm], r.asInstanceOf[STerm]))
+              if (x.tpe.isInstanceOf[Vec])
+                Vec(knownSize, Node, x.tpe.asInstanceOf[Vec].tparam.nomalize)
+              else
+                UInt(knownSize, Node, Undirect)
             case _ =>
               reportError(NoPosition, "Slice should have at most 2 operands")
               Bool.empty
@@ -41,7 +46,6 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
         case VecSelect => operands.head.tpe.asInstanceOf[Vec].tparam.nomalize
         case Mux       => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
         case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
-        case _         => Bool.empty
       }
     }
     val relatedIdents: RelatedIdents =
