@@ -238,7 +238,9 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
               case "indices"      => s"(0 until ${from}.length)"
               case "toIndexedSeq" => s"${from}"
 
-              case "None" if from == "scala" => "None"
+              case "None" if from == "scala" =>
+                if (ChicalaConfig.simulation) "None"
+                else "None()"
               case "Some" if from == "scala" => "Some"
 
               case _ => s"${from}.${name}"
