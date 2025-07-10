@@ -1,11 +1,8 @@
 package chicala.convert.pass
 
-import scala.math.Ordered
 import scala.tools.nsc.Global
 
-import chicala.util.Format
 import chicala.ast.ChicalaAst
-
 import chicala.ast.util.{Transformers, Computes}
 import chicala.util.Printer
 import chicala.ChicalaConfig
@@ -13,14 +10,6 @@ import chicala.ChicalaConfig
 trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Computes { self: ChicalaAst =>
   val global: Global
   import global._
-
-  def sameCType(tpeA: MType, tpeB: MType): Boolean = {
-    val r = (tpeA, tpeB) match {
-      case (a: SignalType, b: SignalType) => a.nomalize == b.nomalize
-      case (a, b)                         => a == b
-    }
-    r
-  }
 
   object UseVecOnly extends ChicalaPass {
     def apply(cClassDef: CClassDef): CClassDef = {
@@ -53,12 +42,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
             ) {
               val op = newCApply.op
               val someHelperName = op match {
-                case VecSelect | VecTake | Mux | AsSInt => Left(newCApply)
-                case AsTypeOf =>
-                  if (sameCType(newCApply.tpe, newCApply.operands.head.tpe))
-                    Left(newCApply.operands.head)
-                  else
-                    Left(newCApply)
+                case VecSelect | VecTake | Mux | AsSInt | AsTypeOf => Left(newCApply)
                 case AsUInt =>
                   newCApply.operands.head.tpe match {
                     case _: Vec => Left(newCApply.operands.head)

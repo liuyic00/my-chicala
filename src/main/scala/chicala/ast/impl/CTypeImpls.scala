@@ -17,7 +17,8 @@ trait CTypeImpls { self: ChicalaAst =>
     def updatedDriction(newDirection: CDirection): SignalType
     def nomalize: SignalType         = this.updatedPhysical(Node).updatedDriction(Undirect)
     def setInferredWidth: SignalType = this
-    def subSignals: Set[String]      = Set.empty
+    def allSizeKnown: Boolean
+    def subSignals: Set[String] = Set.empty
     def allSignals(parentName: String, leftSide: Boolean): Set[String] = physical match {
       case Reg => Set(if (leftSide) Reg.nowSignal(parentName) else Reg.nextSignal(parentName))
       case _   => Set(parentName)
@@ -63,6 +64,10 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
+    def allSizeKnown: Boolean = width match {
+      case KnownSize(_) => true
+      case _            => false
+    }
     def usedVal: Set[String] = width match {
       case KnownSize(width) => width.relatedIdents.used
       case _                => Set.empty
@@ -78,6 +83,10 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
+    def allSizeKnown: Boolean = width match {
+      case KnownSize(_) => true
+      case _            => false
+    }
     def usedVal: Set[String] = width match {
       case KnownSize(width) => width.relatedIdents.used
       case _                => Set.empty
@@ -91,6 +100,7 @@ trait CTypeImpls { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
+    def allSizeKnown: Boolean = true
 
     def usedVal: Set[String] = Set.empty
   }
@@ -100,6 +110,11 @@ trait CTypeImpls { self: ChicalaAst =>
       copy(physical = newPhysical, tparam = tparam.updatedPhysical(newPhysical))
     def updatedDriction(newDirection: CDirection): Vec =
       copy(tparam = tparam.updatedDriction(newDirection))
+
+    def allSizeKnown: Boolean = size match {
+      case KnownSize(_) => tparam.allSizeKnown
+      case _            => false
+    }
 
     def isInput  = tparam.isInput
     def isOutput = tparam.isOutput
@@ -117,6 +132,8 @@ trait CTypeImpls { self: ChicalaAst =>
     def updatedDriction(newDirection: CDirection): Bundle = copy(
       signals = signals.map { case (n, t) => (n, t.updatedDriction(newDirection)) }
     )
+
+    def allSizeKnown: Boolean = signals.values.forall(_.allSizeKnown)
 
     override def subSignals: Set[String] = signals
       .map { case (termName, cDataType) =>
