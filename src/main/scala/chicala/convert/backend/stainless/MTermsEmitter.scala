@@ -295,10 +295,14 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                 val expr = connect.expr.toCodeLines
                 tpe match {
                   case Vec(_, _, t) =>
-                    if (ChicalaConfig.simulation)
-                      CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
-                    else
-                      CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
+                    if (sameKnownSignalType(connect.left.tpe, connect.expr.tpe)) {
+                      CodeLines(s"${left} = ${expr.toCode}")
+                    } else {
+                      if (ChicalaConfig.simulation)
+                        CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
+                      else
+                        CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
+                    }
                   case _: Bool if ChicalaConfig.useBoolean =>
                     CodeLines(s"${left} = ${expr.toCode}")
                   case _ =>
