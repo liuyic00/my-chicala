@@ -284,11 +284,18 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                 val lCode         = l.toCode
                 val rCode         = r.toCode
                 val exprCodeLines = connect.expr.toCodeLines
-                CodeLines(
-                  s"${xCode} = h.v.partConnectList(${xCode}, ${lCode}, ${rCode}, ",
-                  exprCodeLines.indented,
-                  s")"
-                )
+                if (x.tpe.asInstanceOf[Vec].tparam.isInstanceOf[Bool])
+                  CodeLines(
+                    s"${xCode} = h.bv.partConnectList(${xCode}, ${lCode}, ${rCode}, ",
+                    exprCodeLines.indented,
+                    s")"
+                  )
+                else
+                  CodeLines(
+                    s"${xCode} = h.v.partConnectList(${xCode}, ${lCode}, ${rCode}, ",
+                    exprCodeLines.indented,
+                    s")"
+                  )
 
               case SignalRef(_, tpe) =>
                 val left = connect.left.toCode(true)
@@ -300,8 +307,12 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                     } else {
                       if (ChicalaConfig.simulation)
                         CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
-                      else
-                        CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
+                      else {
+                        if (t.isInstanceOf[Bool])
+                          CodeLines(s"${left} = h.bv.connectList(${left}, ${expr.toCode})")
+                        else
+                          CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
+                      }
                     }
                   case _: Bool if ChicalaConfig.useBoolean =>
                     CodeLines(s"${left} = ${expr.toCode}")
