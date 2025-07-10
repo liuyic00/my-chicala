@@ -341,9 +341,15 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
       }
       private def whenCL(when: When, isElseWhen: Boolean): CodeLines = {
         val ifword = if (isElseWhen) " else if" else "if"
-        val whenPart = CodeLines
-          .warpToOneLine(s"${ifword} (when(", when.cond.toCodeLines, ")) ")
-          .concatLastLine(when.whenp.toCodeLines)
+        val whenPart =
+          if (ChicalaConfig.useBoolean)
+            CodeLines
+              .warpToOneLine(s"${ifword} (", when.cond.toCodeLines, ") ")
+              .concatLastLine(when.whenp.toCodeLines)
+          else
+            CodeLines
+              .warpToOneLine(s"${ifword} (when(", when.cond.toCodeLines, ")) ")
+              .concatLastLine(when.whenp.toCodeLines)
         val otherPart: CodeLines = {
           if (when.hasElseWhen) {
             val elseWhen = when.otherp.asInstanceOf[When]
