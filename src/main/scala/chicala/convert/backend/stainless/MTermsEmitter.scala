@@ -107,7 +107,9 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
         }
         cApply.op match {
           case b: CBinaryOp => s"(${operands(0)} ${op} ${operands(1)})"
-          case f: CFrontOp  => s"${op}${operands(0)}"
+          case f: CFrontOp =>
+            if (ChicalaConfig.useBoolean && f == Not) s"!${operands(0)}"
+            else s"${op}${operands(0)}"
           case b: CBackOp =>
             operands match {
               case Nil          => s"FIXME(${cApply})"
