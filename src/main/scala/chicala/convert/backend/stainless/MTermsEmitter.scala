@@ -3,10 +3,11 @@ package chicala.convert.backend.stainless
 import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
+import chicala.ast.util.Compares
 import chicala.convert.backend.util._
 import chicala.ChicalaConfig
 
-trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
+trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
   val global: Global
   import global._
 
@@ -266,13 +267,16 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
             connect.left match {
               case c @ CApply(VecSelect, operands) =>
                 val t    = c.tpe
-                val tpe  = operands.head.tpe
                 val left = operands.head.toCode(true)
                 val idx  = operands.tail.head.toCode
                 val expr = connect.expr.toCodeLines
+
                 CodeLines.warpToOneLine(
-                  s"${left} = ${left}.updated[${t.toCode}, ${tpe.toCode}](${idx}, ",
-                  CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented,
+                  s"${left} = ${left}.updated(${idx}, ",
+                  if (sameKnownSignalType(operands.head.tpe.asInstanceOf[Vec].tparam, connect.expr.tpe))
+                    expr.indented
+                  else
+                    CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented,
                   ")"
                 )
               case c @ SApply(SLib("h.bv.Slice", StFunc), List(x, l, r), _) if x.tpe.isInstanceOf[Vec] =>
@@ -298,14 +302,17 @@ trait MTermsEmitter { self: StainlessEmitter with ChicalaAst =>
                   case _: Bool if ChicalaConfig.useBoolean =>
                     CodeLines(s"${left} = ${expr.toCode}")
                   case _ =>
-                    if (expr.lines.head.startsWith("if"))
-                      CodeLines.warpToOneLine(
-                        s"${left} = ${left} := (",
-                        expr.indented,
-                        ")"
-                      )
-                    else
-                      s"${left} = ${left} := ".concatLastLine(expr)
+                    if (expr.lines.head.startsWith("if")) {
+                      if (sameKnownSignalType(connect.left.tpe, connect.expr.tpe))
+                        CodeLines.warpToOneLine(s"${left} = (", expr.indented, ")")
+                      else
+                        CodeLines.warpToOneLine(s"${left} = ${left} := (", expr.indented, ")")
+                    } else {
+                      if (sameKnownSignalType(connect.left.tpe, connect.expr.tpe))
+                        s"${left} = ".concatLastLine(expr)
+                      else
+                        s"${left} = ${left} := ".concatLastLine(expr)
+                    }
                 }
               case _ =>
                 Unsupport("connectCL", s"Connect(${connect.left.toCode}, ${connect.expr.toCode})")

@@ -89,7 +89,7 @@ trait UseVecOnlys extends ChicalaPasss with Transformers with Printer with Compu
                   SApply(
                     SLib(helperName, StFunc),
                     newCApply.operands,
-                    newCApply.tpe
+                    transformType(newCApply.tpe)
                   )
                 case Left(value) => value
               }

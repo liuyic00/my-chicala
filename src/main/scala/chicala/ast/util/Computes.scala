@@ -39,6 +39,15 @@ trait Computes { self: ChicalaAst =>
       // a + 0
       case SApply(SSelect(a: STerm, TermName("$plus"), StFunc), List(SLiteral(0, StInt)), StInt) =>
         a
+
+      // Compute Litteral
+      // a + b
+      case SApply(SSelect(SLiteral(a: Int, StInt), TermName(op), StFunc), List(SLiteral(b: Int, StInt)), StInt) =>
+        op match {
+          case "$plus"  => SLiteral(a + b, StInt)
+          case "$minus" => SLiteral(a - b, StInt)
+          case _        => sx
+        }
       case _ => sx
     }
   }
@@ -49,19 +58,6 @@ trait Computes { self: ChicalaAst =>
       case _ => x
     }
 
-  }
-
-  def simplifyWithCompute(x: STerm): STerm = {
-    val newX = simplify(x)
-    newX match {
-      case SApply(SSelect(SLiteral(a: Int, StInt), TermName(op), StFunc), List(SLiteral(b: Int, StInt)), StInt) =>
-        op match {
-          case "$plus"  => SLiteral(a + b, StInt)
-          case "$minus" => SLiteral(a - b, StInt)
-          case _        => newX
-        }
-      case _ => newX
-    }
   }
 
   def plus(x: STerm, y: STerm): STerm = {
@@ -80,7 +76,7 @@ trait Computes { self: ChicalaAst =>
   }
 
   def isEqual(x: STerm, y: STerm): Boolean = {
-    x == y || simplifyWithCompute(x) == simplifyWithCompute(y)
+    x == y || simplify(x) == simplify(y)
   }
 
   def leftRightSize(l: STerm, r: STerm): STerm = {

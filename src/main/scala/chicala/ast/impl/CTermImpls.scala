@@ -21,12 +21,34 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
   trait CApplyImpl { self: CApply =>
     val tpe: SignalType = {
       op match {
-        case _: TypeNotChanged => operands.head.tpe.asInstanceOf[SignalType].nomalize
-        case _: TypeInferred =>
-          operands.head.tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
-        case _: ToBool => Bool.empty
-        case _: ToUInt => UInt.empty.setInferredWidth
-        case _: ToSInt => SInt.empty.setInferredWidth
+        // ToUInt
+        case Cat =>
+          val inferredable = operands.map(_.tpe).forall {
+            case tpe: GroundType => tpe.allSizeKnown
+            case _               => false
+          }
+          if (inferredable)
+            UInt(
+              KnownSize(
+                simplify(
+                  operands
+                    .map(_.tpe match {
+                      case UInt(KnownSize(width), _, _) => width
+                      case SInt(KnownSize(width), _, _) => width
+                      case Bool(_, _)                   => SLiteral(1, StInt)
+                      case _ =>
+                        reportError(NoPosition, "Inferred width for Cat should work")
+                        SLiteral(0, StInt)
+                    })
+                    .reduce((a, b) => plus(a, b))
+                )
+              ),
+              Node,
+              Undirect
+            )
+          else
+            UInt.empty.setInferredWidth
+
         // TypeChanged
         case Slice =>
           operands match {
@@ -46,6 +68,13 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
         case VecSelect => operands.head.tpe.asInstanceOf[Vec].tparam.nomalize
         case Mux       => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
         case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
+        // Rest
+        case _: TypeNotChanged => operands.head.tpe.asInstanceOf[SignalType].nomalize
+        case _: TypeInferred =>
+          operands.head.tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
+        case _: ToBool => Bool.empty
+        case _: ToUInt => UInt.empty.setInferredWidth
+        case _: ToSInt => SInt.empty.setInferredWidth
       }
     }
     val relatedIdents: RelatedIdents =
