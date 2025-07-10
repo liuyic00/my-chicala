@@ -25,6 +25,7 @@ trait ChicalaPassCollecttion
     with ReduceAsTypeOfs
     with RegEnableApplys
     with Sv2ChiselSimplifys
+    with UseNestedCats
     with UseRecursiveFuncs
     with UseVecOnlys {
   self: ChicalaAst =>

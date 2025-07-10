@@ -19,6 +19,7 @@ object ChicalaConfig {
   var useRecursiveFunc     = false
   var useVecOnly           = false
   var useBoolean           = false
+  var useNestedCat         = false
   var unbreakBlocks        = false
   var disableNeedCheckWarn = false
 }
@@ -57,6 +58,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
         ChicalaConfig.useVecOnly = true
       } else if (option == "useBoolean") {
         ChicalaConfig.useBoolean = true
+      } else if (option == "useNestedCat") {
+        ChicalaConfig.useNestedCat = true
       } else if (option == "unbreakBlocks") {
         ChicalaConfig.unbreakBlocks = true
       } else if (option == "disableNeedCheckWarn") {
@@ -79,6 +82,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Replace `UInt` to `Vec[Bool]`, not support `SInt`.
        |  -P:chicala:useBoolean
        |                               Replace `Bool` to `Boolean`.
+       |  -P:chicala:useNestedCat
+       |                               Use nested Cat when there multiple operands.
        |  -P:chicala:unbreakBlocks
        |                               Do not break blocks in the dependency sort.
        |  -P:chicala:disableNeedCheckWarn
