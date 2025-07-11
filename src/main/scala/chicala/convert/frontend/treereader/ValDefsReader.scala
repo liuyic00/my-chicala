@@ -262,9 +262,10 @@ trait ValDefsReader { self: Scala2Reader =>
               .toRight(DependentClassNotDef(moduleFullName))
             mArgs <- MTermLoader.loadTerms(cInfo, args).map(_.value)
           } yield {
-            val ioDefs       = moduleDef.ioDefs
-            val tpe          = SubModule(moduleFullName, ioDefs, moduleDef.vparams)
-            val subModuleDef = SubModuleDef(name, tpe, mArgs)
+            val ioDefs           = moduleDef.ioDefs
+            val collectedRegDefs = moduleDef.collectedRegDefs
+            val tpe              = SubModule(moduleFullName, ioDefs, collectedRegDefs, moduleDef.vparams)
+            val subModuleDef     = SubModuleDef(name, tpe, mArgs)
             ModifiedAndLoaded(cInfo.updatedVal(name, tpe), subModuleDef)
           }
         case Block(stats, expr) =>

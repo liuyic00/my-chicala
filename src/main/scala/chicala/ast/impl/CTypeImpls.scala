@@ -10,6 +10,17 @@ trait CTypeImpls { self: ChicalaAst =>
 
   trait CTypeImpl { self: CType => }
 
+  trait SubModuleImpl { self: SubModule =>
+    def argsReplacer(args: List[MStatement]): Replacer = {
+      Replacer(
+        vparams
+          .map(sValDef => SIdent(sValDef.name, sValDef.tpe): MStatement)
+          .zip(args)
+          .toMap
+      )
+    }
+  }
+
   trait SignalTypeImpl { self: SignalType =>
     def physical: CPhysical
 

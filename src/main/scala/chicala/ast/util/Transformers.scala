@@ -112,8 +112,8 @@ trait Transformers { self: ChicalaAst =>
         case UInt(width, physical, direction) => UInt(transformCSize(width), physical, direction)
         case SInt(width, physical, direction) => SInt(transformCSize(width), physical, direction)
         case Bool(physical, direction)        => Bool(physical, direction)
-        case SubModule(fullName, ioDefs, vparams) =>
-          SubModule(fullName, ioDefs.map(transformT), vparams.map(transformT))
+        case SubModule(fullName, ioDefs, collectedRegDefs, vparams) =>
+          SubModule(fullName, ioDefs.map(transformT), collectedRegDefs.map(transformT), vparams.map(transformT))
 
         case StTuple(tparams) => StTuple(tparams.map(transformTypeT))
         case StSeq(tparam)    => StSeq(transformTypeT(tparam))

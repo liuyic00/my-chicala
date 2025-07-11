@@ -371,7 +371,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
         branchs.reduceRight((a, b) => a.concatLastLine(" else ".concatLastLine(b)))
       }
       private def subModuleRunCL(subModuleRun: SubModuleRun): CodeLines = {
-        val n = subModuleRun.name match {
+        val subModuleValName = subModuleRun.name match {
           case Select(_, n) => n
           case Ident(n)     => n
         }
@@ -384,25 +384,42 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
             .enddedWithExceptLast(","),
           ")"
         )
-        val regs = s"${moduelFullName}Regs()"
+        val regs = CodeLines.warpToOneLine(
+          s"${moduelFullName}Regs(",
+          subModuleRun.moduleType.collectedRegDefs
+            .map(x => s"regs.${subModuleValName}_${x.name}")
+            .toCodeLines
+            .enddedWithExceptLast(","),
+          ")"
+        )
 
         // `tmpOutputGroupName` used in `val (tmpOutputGroupName, _) = ...`, can
         // not start with upper case. Add `t$` to avoid
-        val tmpOutputGroupName = s"t$$${n}TransOutputs"
+        val tmpOutputGroupName = s"t$$${subModuleValName}TransOutputs"
+        val tmpRegGroupName =
+          if (subModuleRun.moduleType.collectedRegDefs.isEmpty) "_"
+          else s"t$$${subModuleValName}TransRegs"
 
         CodeLines(
-          s"val (${tmpOutputGroupName}, _) = ${n}.trans(",
+          s"val ($tmpOutputGroupName, $tmpRegGroupName) = ${subModuleValName}.trans(",
           CodeLines(
             inputs.concatLastLine(","),
             regs
           ).indented,
           ")"
         ) ++ (
+          // outputs
           subModuleRun.outputRefs
             .zip(subModuleRun.outputIos)
             .map({ case (outputRef, (outputIoName, _)) =>
               s"${outputRef.toCode} = ${tmpOutputGroupName}.${outputIoName}"
             })
+            .toCodeLines
+        ) ++ (
+          // regs
+          subModuleRun.moduleType.collectedRegDefs
+            .map(x => x.name)
+            .map(regName => s"${subModuleValName}_${regName}_next = ${tmpRegGroupName}.${regName}")
             .toCodeLines
         )
       }

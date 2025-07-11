@@ -10,12 +10,14 @@ trait CClassDefsImpl extends Replacers { self: ChicalaAst =>
   import global._
 
   trait ModuleDefImpl { self: ModuleDef =>
-    def ioDefs: List[IoDef] = {
-      val ios        = body.collect({ case x: IoDef => x })
+    private val localValReplacer = {
       val sValDefs   = body.collect({ case x: SValDef => x })
       val replaceMap = sValDefs.map(x => (SIdent(x.name, x.tpe): MStatement) -> x.rhs).toMap
-      val replacer   = Replacer(replaceMap).convergence
-      val newIOs     = ios.map(replacer.transformT(_))
+      Replacer(replaceMap).convergence
+    }
+    def ioDefs: List[IoDef] = {
+      val ios    = body.collect({ case x: IoDef => x })
+      val newIOs = ios.map(localValReplacer.transformT(_))
       newIOs.isEmpty match {
         case true =>
           reportError(NoPosition, "ModuleDef should has a IoDef in body")
@@ -23,7 +25,19 @@ trait CClassDefsImpl extends Replacers { self: ChicalaAst =>
         case false => newIOs
       }
     }
-    def regDefs: List[RegDef] = body.collect { case x: RegDef => x }
+    def collectedRegDefs: List[RegDef] = {
+      // TODO: deep into if-else branches
+      body.collect {
+        case x: RegDef =>
+          List(x)
+            .map(localValReplacer.transformT(_))
+        case sub: SubModuleDef =>
+          sub.tpe.collectedRegDefs
+            .map(x => x.copy(name = TermName(s"${sub.name}_${x.name}")))
+            .map(localValReplacer.transformT(_))
+            .map(sub.tpe.argsReplacer(sub.args).transformT(_))
+      }.flatten
+    }
   }
   trait BundleDefImpl { self: BundleDef =>
     def applyArgs(args: List[MTerm]): BundleDef = {

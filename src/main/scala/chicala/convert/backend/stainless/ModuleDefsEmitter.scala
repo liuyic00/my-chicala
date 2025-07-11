@@ -78,10 +78,10 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
             .filter { case (name, tpe) => tpe.isOutput }
         )
 
-      private val regDefs = moduleDef.regDefs
+      private val collectedRegDefs = moduleDef.collectedRegDefs
       private val (regSignals, regInits) = {
         var inits = Map.empty[String, MTerm]
-        val signals = regDefs
+        val signals = collectedRegDefs
           .map({ case RegDef(name, tpe, someInit, someNext, someEnable) =>
             val sig = tpe.flatten(name.toString())
             someInit.foreach(x =>

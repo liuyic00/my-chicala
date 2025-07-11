@@ -59,13 +59,7 @@ trait ExpandSubModuleDefs extends ChicalaPasss with Transformers with Replacers 
 
         def flattenName(name: String) = s"${subModuleName}_${name}"
 
-        val argsReplaceIn = {
-          val argReplaceMap = subModuleType.vparams
-            .map(sValDef => SIdent(sValDef.name, sValDef.tpe): MStatement)
-            .zip(subModuleArgs: List[MStatement])
-            .toMap
-          Replacer(argReplaceMap)
-        }
+        val argsReplaceIn = subModuleType.argsReplacer(subModuleArgs)
         val signals = subModuleIoDefs
           .flatMap(ioDef => ioDef.tpe.flatten(ioDef.name.toString()))
           .map { case (name, tpe) => (name, argsReplaceIn.transformTypeT(tpe)) }
