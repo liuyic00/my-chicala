@@ -138,7 +138,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
                           t.wrappedToOneLineBy(s"${name}.forall(", ")")
                     }
                   )
-                case _ => CodeLines(s"// Unknown size ${name}")
+                case _ => CodeLines(s"/* Unknown size ${name} */")
               }
             case _ => CodeLines(s"FIXME(${name})")
           }

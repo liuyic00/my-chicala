@@ -176,13 +176,27 @@ trait ValDefsReader { self: Scala2Reader =>
       } else if (isChisel3VecInitDoApply(func)) {
         assertError(args.length >= 1, func.pos, "Should have at last 1 arg in VecInit()")
         MTermLoader.loadTerms(cInfo, args).map { case Loaded(mArgs) =>
-          val init = SApply(SLib("scala.`package`.Seq.apply", StFunc), mArgs, StSeq(mArgs.head.tpe))
-          val tpe = Vec(
-            KnownSize.fromInt(mArgs.size),
-            Wire,
-            mArgs.head.tpe.asInstanceOf[SignalType]
-          )
-          ModifiedAndLoaded(cInfo.updatedVal(name, tpe), WireDef(name, tpe, Some(init)))
+          mArgs match {
+            case (a @ SApply(
+                  SApply(SLib("scala.`package`.Seq.fill", _), List(size: STerm), _),
+                  List(initVal),
+                  _
+                )) :: Nil =>
+              val tpe = Vec(
+                KnownSize(size),
+                Wire,
+                initVal.tpe.asInstanceOf[SignalType]
+              )
+              ModifiedAndLoaded(cInfo.updatedVal(name, tpe), WireDef(name, tpe, Some(a)))
+            case _ =>
+              val init = SApply(SLib("scala.`package`.Seq.apply", StFunc), mArgs, StSeq(mArgs.head.tpe))
+              val tpe = Vec(
+                KnownSize.fromInt(mArgs.size),
+                Wire,
+                mArgs.head.tpe.asInstanceOf[SignalType]
+              )
+              ModifiedAndLoaded(cInfo.updatedVal(name, tpe), WireDef(name, tpe, Some(init)))
+          }
         }
       } else {
         reporter.error(func.pos, "Unknow WireDef function")
@@ -204,12 +218,24 @@ trait ValDefsReader { self: Scala2Reader =>
         }
       } else if (isChisel3RegInitApply(func)) {
         if (args.length == 1) {
-          MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
-            val signalInfo = init.tpe.asInstanceOf[SignalType].updatedPhysical(Reg)
-            ModifiedAndLoaded(
-              cInfo.updatedVal(name, signalInfo),
-              RegDef(name, signalInfo, Some(init))
-            )
+          passThrough(args.head)._1 match {
+            // for VecInit
+            case Apply(fun, as) if (isChiselWireDefApply(fun)) =>
+              loadWireDef(cInfo, name, fun, as, false).map { case ModifiedAndLoaded(_, wireDef) =>
+                val sigType = wireDef.tpe.updatedPhysical(Reg)
+                ModifiedAndLoaded(
+                  cInfo.updatedVal(name, sigType),
+                  RegDef(name, sigType, wireDef.someInit)
+                )
+              }
+            case _ =>
+              MTermLoader.must(cInfo, args.head).map { case Loaded(init) =>
+                val signalInfo = init.tpe.asInstanceOf[SignalType].updatedPhysical(Reg)
+                ModifiedAndLoaded(
+                  cInfo.updatedVal(name, signalInfo),
+                  RegDef(name, signalInfo, Some(init))
+                )
+              }
           }
         } else {
           unprocessedTree(func, s"ValDefReader.loadRegDef with ${args.size} arg")

@@ -199,6 +199,8 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                 }
 
               case "scala.Array.fill" => if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
+              case "scala.`package`.Seq.fill" =>
+                if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
               case s if s.startsWith("h.") => s"${s}(${args})"
               case _ =>

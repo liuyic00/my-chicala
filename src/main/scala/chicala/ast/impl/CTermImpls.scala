@@ -96,8 +96,9 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
     val tpe = left.tpe.asInstanceOf[SignalType].updatedPhysical(Node)
     val relatedIdents: RelatedIdents = {
       val fully = left match {
-        case SignalRef(name, tpe) => tpe.allSignals(name.toString(), true)
-        case _                    => left.relatedIdents.dependency
+        case SignalRef(name, tpe)                         => tpe.allSignals(name.toString(), true)
+        case CApply(VecSelect, SignalRef(name, tpe) :: _) => tpe.allSignals(name.toString(), true)
+        case _                                            => left.relatedIdents.dependency
       }
       RelatedIdents(fully, Set.empty, Set.empty, Set.empty, Set.empty)
     } ++ expr.relatedIdents

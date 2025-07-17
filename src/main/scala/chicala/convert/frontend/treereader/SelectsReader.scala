@@ -16,6 +16,7 @@ trait SelectsReader { self: Scala2Reader =>
       "chisel3.VecInit.do_tabulate",
       //
       "scala.Array.fill",
+      "scala.`package`.Seq.fill",
       "scala.`package`.Seq.apply",
       "scala.`package`.Range.apply",
       "scala.`package`.BigInt.apply",

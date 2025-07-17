@@ -37,7 +37,9 @@ trait AfterSorts extends ChicalaPasss with Transformers { self: ChicalaAst =>
             val fullys      = s.relatedIdents.fully
             val intersect   = dependencys.intersect(fullys)
             val newS = if (intersect.nonEmpty) {
-              val comment = Comment("chicala[NEEDCHECK]: function has self dependency inside")
+              val comment = Comment(
+                s"chicala[NEEDCHECK]: function has self dependency inside: ${intersect.mkString(", ")}"
+              )
               val newFuncp = f.funcp match {
                 case SBlock(body, tpe) => SBlock(comment :: body, tpe)
                 case x                 => SBlock(comment :: List(x), x.tpe)

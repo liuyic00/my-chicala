@@ -181,8 +181,8 @@ trait CTypeImpls { self: ChicalaAst =>
     private val nowSuffix  = "$now"
     private val nextSuffix = "$next"
 
-    def nowSignal(signal: String)  = signal + "." + nowSuffix
-    def nextSignal(signal: String) = signal + "." + nextSuffix
+    def nowSignal(signal: String)  = signal + nowSuffix
+    def nextSignal(signal: String) = signal + nextSuffix
 
     def nowSignals(signals: Set[String])  = signals.map(nowSignal(_))
     def nextSignals(signals: Set[String]) = signals.map(nextSignal(_))
