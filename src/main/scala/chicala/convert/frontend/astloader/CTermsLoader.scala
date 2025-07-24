@@ -121,7 +121,18 @@ trait CTermsLoader { self: Scala2Reader =>
             StatementReader(_, args.head)
           ).flatMap {
             case Loaded((when: When) :: otherp :: Nil) =>
-              Right(Loaded(When(when.cond, when.whenp, otherp)))
+              if (when.hasElseWhen) {
+                assertError(
+                  when.otherp.isInstanceOf[When],
+                  qualifier.pos,
+                  "When with hasElseWhen should have otherp as When, but got " + otherp.getClass
+                )
+                val elseWhen = when.otherp.asInstanceOf[When]
+                Right(Loaded(When(when.cond, when.whenp, When(elseWhen.cond, elseWhen.whenp, otherp), true)))
+              } else {
+                assertError(when.otherp == EmptyMTerm, qualifier.pos, "When should not have otherp here")
+                Right(Loaded(When(when.cond, when.whenp, otherp)))
+              }
             case _ => loadMutilpleMatchError(qualifier)
           }
         }
