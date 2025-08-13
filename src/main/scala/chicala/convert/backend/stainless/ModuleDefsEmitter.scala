@@ -129,7 +129,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
                   CodeLines(s"${name}.width == ${width.width.toCode}")
                 case Bool(_, _) => CodeLines.empty
                 case Vec(size: KnownSize, _, tpe) =>
-                  CodeLines(s"${name}.length == ${size.width.toCode}").concatLastLine(
+                  CodeLines(s"${name}.size == ${size.width.toCode}").concatLastLine(
                     {
                       val t = signalRequire("_", tpe)
                       if (t.isEmpty) CodeLines.empty

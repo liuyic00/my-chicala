@@ -237,7 +237,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
           .getOrElse(
             name match {
               case "bitLength"    => s"bitLength(${from})"
-              case "indices"      => s"(0 until ${from}.length)"
+              case "indices"      => s"(0 until ${from}.size)"
               case "toIndexedSeq" => s"${from}"
 
               case "None" if from == "scala" =>
