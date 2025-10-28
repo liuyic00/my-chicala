@@ -35,7 +35,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
             CodeLines(
               s"""package ${moduleDef.pkg}
                  |
-                 |import librarySimUInt._""".stripMargin
+                 |import librarySim._""".stripMargin
             )
 
         val inputsCaseClass  = signalsClassCL(inputsClassName, inputSignals)
@@ -119,7 +119,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
       private def signalsRequireCL(
           signalGroup: String,
           signalClassName: String,
-          signals: List[(String, SignalType)]
+          signalsOrig: List[(String, SignalType)]
       ): CodeLines = {
         def signalRequire(name: String, tpe: SignalType): CodeLines = {
           tpe match {
@@ -143,6 +143,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
             case _ => CodeLines(s"FIXME(${name})")
           }
         }
+        val signals = signalsOrig.map({ case (name, tpe) => (name.head.toLower +: name.tail, tpe) })
 
         val signalNames = signals.map(_._1).mkString(", ")
 
