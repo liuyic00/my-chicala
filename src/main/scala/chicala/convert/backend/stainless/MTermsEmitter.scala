@@ -99,7 +99,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
           case AsBool    => ".asBool"
           case AsTypeOf  => ".asTypeOf"
           // CUtilOp
-          case Mux       => "Mux"
+          case Mux       => if (ChicalaConfig.useVecOnly) "h.bv.Mux" else "Mux"
           case MuxLookup => "MuxLookup"
           case Cat       => "Cat"
           case Fill      => "Fill"
