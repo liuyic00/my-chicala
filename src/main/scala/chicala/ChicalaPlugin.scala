@@ -22,6 +22,7 @@ object ChicalaConfig {
   var useNestedCat         = false
   var unbreakBlocks        = false
   var disableNeedCheckWarn = false
+  var removeAsTypeOf       = false
 }
 
 class ChicalaPlugin(val global: Global) extends Plugin {
@@ -64,6 +65,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
         ChicalaConfig.unbreakBlocks = true
       } else if (option == "disableNeedCheckWarn") {
         ChicalaConfig.disableNeedCheckWarn = true
+      } else if (option == "removeAsTypeOf") {
+        ChicalaConfig.removeAsTypeOf = true
       } else {
         error("Option not understood: " + option)
       }
@@ -88,6 +91,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
        |                               Do not break blocks in the dependency sort.
        |  -P:chicala:disableNeedCheckWarn
        |                               Do not show warning about need to check the generated code.
+       |  -P:chicala:removeAsTypeOf
+       |                               Remove `asTypeOf`.
        |""".stripMargin
   )
 }

@@ -112,9 +112,13 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
             else s"${op}${operands(0)}"
           case b: CBackOp =>
             operands match {
-              case Nil          => s"FIXME(${cApply})"
-              case head :: Nil  => s"${head}${op}"
-              case head :: tail => s"${head}${op}(${tail.mkString(", ")})"
+              case Nil         => s"FIXME(${cApply})"
+              case head :: Nil => s"${head}${op}"
+              case head :: tail =>
+                if (cApply.op == AsTypeOf && ChicalaConfig.removeAsTypeOf)
+                  s"${head}"
+                else
+                  s"${head}${op}(${tail.mkString(", ")})"
             }
           case u: CUtilOp =>
             if (u == Cat && operands.size > 2)
