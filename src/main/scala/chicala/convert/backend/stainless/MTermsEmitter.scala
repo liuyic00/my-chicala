@@ -80,8 +80,8 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
           case Xor       => "^"
           case LShift    => "<<"
           case RShift    => ">>"
-          case Equal     => "==="
-          case NotEqual  => "=/="
+          case Equal     => if (ChicalaConfig.useVecOnly) "==" else "===" // TODO: should consider "useBoolean"
+          case NotEqual  => if (ChicalaConfig.useVecOnly) "!=" else "=/=" // TODO: should consider "useBoolean"
           case GreaterEq => ">="
           case LogiAnd   => "&&"
           case LogiOr    => "||"
@@ -316,11 +316,12 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                       CodeLines(s"${left} = ${expr.toCode}")
                     } else {
                       if (ChicalaConfig.simulation)
-                        CodeLines(s"${left} = h.v.connectSeq(${left}, ${expr.toCode})")
+                        CodeLines(s"${left} = h.bv.connectSeq(${left}, ${expr.toCode})")
                       else {
                         if (t.isInstanceOf[Bool])
                           CodeLines(s"${left} = h.bv.connectList(${left}, ${expr.toCode})")
                         else
+                          // TODO: remove this
                           CodeLines(s"${left} = h.v.connectList(${left}, ${expr.toCode})")
                       }
                     }
@@ -370,8 +371,16 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
       }
       private def switchCL(switch: Switch): CodeLines = {
         val signal = switch.cond.toCode
+        val op =
+          if (
+            (switch.cond.tpe.isInstanceOf[Bool] && ChicalaConfig.useBoolean) ||
+            ChicalaConfig.useVecOnly
+          )
+            "=="
+          else
+            "==="
         val branchs = switch.branchs.map { case (value, branchp) =>
-          CodeLines(s"if ((${signal} === ${value.toCode}).value) ")
+          CodeLines(s"if ((${signal} $op ${value.toCode}).value) ")
             .concatLastLine(branchp.toCodeLines)
         }
         branchs.reduceRight((a, b) => a.concatLastLine(" else ".concatLastLine(b)))
