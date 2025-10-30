@@ -21,10 +21,11 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
   trait CApplyImpl { self: CApply =>
     val tpe: SignalType = {
       def getSomeWidth(mTerm: MTerm): Option[STerm] = mTerm.tpe match {
-        case UInt(KnownSize(width), _, _) => Some(width)
-        case SInt(KnownSize(width), _, _) => Some(width)
-        case Bool(_, _)                   => Some(SLiteral(1, StInt))
-        case _                            => None
+        case UInt(KnownSize(width), _, _)        => Some(width)
+        case SInt(KnownSize(width), _, _)        => Some(width)
+        case Vec(KnownSize(size), _, Bool(_, _)) => Some(size)
+        case Bool(_, _)                          => Some(SLiteral(1, StInt))
+        case _                                   => None
       }
       op match {
 

@@ -115,7 +115,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
               case Nil         => s"FIXME(${cApply})"
               case head :: Nil => s"${head}${op}"
               case head :: tail =>
-                if (cApply.op == AsTypeOf && ChicalaConfig.removeAsTypeOf)
+                if (cApply.op == AsTypeOf && ChicalaConfig.removeTypeConvert)
                   s"${head}"
                 else
                   s"${head}${op}(${tail.mkString(", ")})"
@@ -283,10 +283,11 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
 
                 CodeLines.warpToOneLine(
                   s"${left} = ${left}.updated(${idx}, ",
-                  if (sameKnownSignalType(operands.head.tpe.asInstanceOf[Vec].tparam, connect.expr.tpe))
-                    expr.indented
-                  else
-                    CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented,
+                  if (
+                    ChicalaConfig.removeTypeConvert ||
+                    sameKnownSignalType(operands.head.tpe.asInstanceOf[Vec].tparam, connect.expr.tpe)
+                  ) { expr.indented }
+                  else { CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented },
                   ")"
                 )
               case c @ SApply(SLib("h.bv.Slice", StFunc), List(x, l, r), _) if x.tpe.isInstanceOf[Vec] =>
