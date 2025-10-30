@@ -206,6 +206,15 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
               case "scala.`package`.Seq.fill" =>
                 if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
+              // case "h.bv.Lit"
+              //    if (ChicalaConfig.useBoolean &&
+              //      ChicalaConfig.useVecOnly &&
+              //      sApply.args.size == 2 &&
+              //      sApply.args(1) == SLiteral(1, StInt)) =>
+              //  sApply.args(0).asInstanceOf[SLiteral].value match {
+              //    case 1 => "true"
+              //    case 0 => "false"
+              //  }
               case s if s.startsWith("h.") => s"${s}(${args})"
               case _ =>
                 TODO("sApplyCode", s"SLib(${name})(${args})", sApply.tpe)
@@ -327,7 +336,12 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                       }
                     }
                   case _: Bool if ChicalaConfig.useBoolean =>
-                    CodeLines(s"${left} = ${expr.toCode}")
+                    connect.expr match {
+                      case SApply(SLib("h.bv.Lit", StFunc), List(SLiteral(v, StInt), SLiteral(1, StInt)), _) =>
+                        CodeLines(s"${left} = ${if (v == 1) "true" else "false"}")
+                      case _ =>
+                        CodeLines(s"${left} = ${expr.toCode}")
+                    }
                   case _ =>
                     if (expr.lines.head.startsWith("if")) {
                       if (sameKnownSignalType(connect.left.tpe, connect.expr.tpe))
