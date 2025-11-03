@@ -85,6 +85,13 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
         case _: CNotDependOp =>
           operands.head.relatedIdents ++
             RelatedIdents.used(operands.tail.map(_.relatedIdents.dependency).reduce(_ ++ _))
+        case VecSelect =>
+          operands.map(_.relatedIdents).reduce(_ ++ _) ++
+            (operands match {
+              case SignalRef(name, tpe) :: SLiteral(v: Int, StInt) :: Nil =>
+                RelatedIdents(Set(), Set(), tpe.allSignals(name.toString() + s"${name}(${v})", false), Set(), Set())
+              case _ => RelatedIdents.empty
+            })
         case _ =>
           operands.map(_.relatedIdents).reduce(_ ++ _)
       }
@@ -97,9 +104,16 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
     val tpe = left.tpe.asInstanceOf[SignalType].updatedPhysical(Node)
     val relatedIdents: RelatedIdents = {
       val fully = left match {
-        case SignalRef(name, tpe)                         => tpe.allSignals(name.toString(), true)
-        case CApply(VecSelect, SignalRef(name, tpe) :: _) => tpe.allSignals(name.toString(), true)
-        case _                                            => left.relatedIdents.dependency
+        case SignalRef(name, tpe) => tpe.allSignals(name.toString(), true)
+        case CApply(VecSelect, SignalRef(name, tpe) :: tail) =>
+          tpe.allSignals(name.toString(), true) ++ (
+            tail match {
+              case SLiteral(v: Int, StInt) :: Nil =>
+                tpe.allSignals(s"${name}(${v})", true)
+              case _ => Set.empty
+            }
+          )
+        case _ => left.relatedIdents.dependency
       }
       RelatedIdents(fully, Set.empty, Set.empty, Set.empty, Set.empty)
     } ++ expr.relatedIdents

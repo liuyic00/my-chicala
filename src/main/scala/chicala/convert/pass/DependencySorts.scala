@@ -149,16 +149,17 @@ trait DependencySorts extends ChicalaPasss with Transformers { self: ChicalaAst 
         statement match {
           // Connect:
           case c: Connect =>
-            val left = c.relatedIdents.fully.head
-            if (lastConnect(left).contains(id)) { // only valid connection
-              addEdges(
-                (dependency ++ c.relatedIdents.dependency)
-                  .map(lastConnect.getOrElse(_, Set.empty))
-                  .flatten
-                  .map(x => DirectedEdge(id, x)),
-                c
-              )
-            }
+            c.relatedIdents.fully.foreach(left =>
+              if (lastConnect(left).contains(id)) { // only valid connection
+                addEdges(
+                  (dependency ++ c.relatedIdents.dependency)
+                    .map(lastConnect.getOrElse(_, Set.empty))
+                    .flatten
+                    .map(x => DirectedEdge(id, x)),
+                  c
+                )
+              }
+            )
           // Breakable blocks:
           // unbreak block
           case _: When | _: SIf | _: SBlock | _: Switch if ChicalaConfig.unbreakBlocks =>
