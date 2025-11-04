@@ -34,7 +34,30 @@ trait ReduceAsTypeOfs extends ChicalaPasss with Transformers with Compares { sel
             if (sameKnownSignalType(newOp1.tpe, newOp2.tpe))
               newOp1
             else {
-              CApply(AsTypeOf, List(newOp1, newOp2))
+              (newOp1.tpe, newOp2.tpe) match {
+                case (Vec(_, _, Bool(_, _)), Vec(KnownSize(size), _, Bool(_, _))) =>
+                  CApply(VecTake, List(newOp1, size))
+                case (
+                      Vec(_, _, Bool(_, _)),
+                      t2 @ Vec(KnownSize(size1), _, Vec(KnownSize(size2), _, Bool(_, _)))
+                    ) =>
+                  SApply(
+                    SLib("h.bv.list2listlist", StFunc),
+                    List(newOp1, size1, size2),
+                    t2.nomalize
+                  )
+                case (
+                      Vec(_, _, Vec(_, _, Bool(_, _))),
+                      t2 @ Vec(KnownSize(size), _, Bool(_, _))
+                    ) =>
+                  SApply(
+                    SLib("h.bv.listlist2list", StFunc),
+                    List(newOp1, size),
+                    t2.nomalize
+                  )
+                case _ =>
+                  CApply(AsTypeOf, List(newOp1, newOp2))
+              }
             }
           case x => super.transform(x)
         }

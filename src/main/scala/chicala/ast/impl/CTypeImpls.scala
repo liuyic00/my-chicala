@@ -3,8 +3,9 @@ package chicala.ast.impl
 import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
+import chicala.ast.util.Computes
 
-trait CTypeImpls { self: ChicalaAst =>
+trait CTypeImpls extends Computes { self: ChicalaAst =>
   val global: Global
   import global._
 
@@ -26,7 +27,8 @@ trait CTypeImpls { self: ChicalaAst =>
 
     def updatedPhysical(newPhysical: CPhysical): SignalType
     def updatedDriction(newDirection: CDirection): SignalType
-    def nomalize: SignalType         = this.updatedPhysical(Node).updatedDriction(Undirect)
+    def nomalize: SignalType = this.updatedPhysical(Node).updatedDriction(Undirect)
+    def simplify: SignalType
     def setInferredWidth: SignalType = this
     def allSizeKnown: Boolean
     def subSignals: Set[String] = Set.empty
@@ -75,6 +77,10 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
+    def simplify: UInt = width match {
+      case KnownSize(w) => this.updatedWidth(KnownSize(CTypeImpls.this.simplify(w)))
+      case _            => this
+    }
     def allSizeKnown: Boolean = width match {
       case KnownSize(_) => true
       case _            => false
@@ -94,6 +100,10 @@ trait CTypeImpls { self: ChicalaAst =>
       case Undirect => copy(direction = Undirect)
     }
     override def setInferredWidth = copy(width = InferredSize)
+    def simplify: SInt = width match {
+      case KnownSize(w) => this.updatedWidth(KnownSize(CTypeImpls.this.simplify(w)))
+      case _            => this
+    }
     def allSizeKnown: Boolean = width match {
       case KnownSize(_) => true
       case _            => false
@@ -111,6 +121,7 @@ trait CTypeImpls { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
+    def simplify: Bool        = this
     def allSizeKnown: Boolean = true
 
     def usedVal: Set[String] = Set.empty
@@ -122,6 +133,10 @@ trait CTypeImpls { self: ChicalaAst =>
     def updatedDriction(newDirection: CDirection): Vec =
       copy(tparam = tparam.updatedDriction(newDirection))
 
+    def simplify: Vec = size match {
+      case KnownSize(w) => Vec(KnownSize(CTypeImpls.this.simplify(w)), physical, tparam.simplify)
+      case _            => Vec(size, physical, tparam.simplify)
+    }
     def allSizeKnown: Boolean = size match {
       case KnownSize(_) => tparam.allSizeKnown
       case _            => false
@@ -144,6 +159,14 @@ trait CTypeImpls { self: ChicalaAst =>
       signals = signals.map { case (n, t) => (n, t.updatedDriction(newDirection)) }
     )
 
+    def simplify: Bundle = {
+      Bundle(
+        physical,
+        signals.map { case (termName, cDataType) =>
+          (termName, cDataType.simplify)
+        }
+      )
+    }
     def allSizeKnown: Boolean = signals.values.forall(_.allSizeKnown)
 
     override def subSignals: Set[String] = signals

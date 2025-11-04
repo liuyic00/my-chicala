@@ -10,7 +10,7 @@ trait Compares { self: ChicalaAst =>
 
   def sameKnownSignalType(tpeA: MType, tpeB: MType): Boolean = {
     val r = (tpeA, tpeB) match {
-      case (a: SignalType, b: SignalType) => a.allSizeKnown && a.nomalize == b.nomalize
+      case (a: SignalType, b: SignalType) => a.allSizeKnown && a.nomalize.simplify == b.nomalize.simplify
       case _                              => false
     }
     r

@@ -8,54 +8,55 @@ trait Computes { self: ChicalaAst =>
   val global: Global
   import global._
 
-  def simplify(x: STerm): STerm = {
-    val sx = simplifyInside(x)
-    sx match {
-      // a + b - c
+  def simplify(exp: STerm): STerm = {
+    val sexp = simplifyInside(exp)
+    sexp match {
+      // x + y1 - y2
       case SApply(
             SSelect(
-              SApply(SSelect(a: STerm, TermName("$plus"), StFunc), List(b: STerm), StInt),
+              SApply(SSelect(x: STerm, TermName("$plus"), StFunc), List(y1: STerm), StInt),
               TermName("$minus"),
               StFunc
             ),
-            List(c: STerm),
+            List(y2: STerm),
             StInt
-          ) if b == c =>
-        a
-      // a - b + c
-      case x @ SApply(
+          ) if y1 == y2 =>
+        x
+      // x - y1 + y2
+      case SApply(
             SSelect(
-              SApply(SSelect(a: STerm, TermName("$minus"), StFunc), List(b: STerm), StInt),
+              SApply(SSelect(x: STerm, TermName("$minus"), StFunc), List(y1: STerm), StInt),
               TermName("$plus"),
               StFunc
             ),
-            List(c: STerm),
+            List(y2: STerm),
             StInt
-          ) if b == c =>
-        a
-      // a - 0
-      case SApply(SSelect(a: STerm, TermName("$minus"), StFunc), List(SLiteral(0, StInt)), StInt) =>
-        a
-      // a + 0
-      case SApply(SSelect(a: STerm, TermName("$plus"), StFunc), List(SLiteral(0, StInt)), StInt) =>
-        a
+          ) if y1 == y2 =>
+        x
+      // x - 0 = x
+      // x + 0 = x
+      case SApply(SSelect(x: STerm, TermName("$minus") | TermName("$plus"), StFunc), List(SLiteral(0, StInt)), StInt) =>
+        x
 
       // Compute Litteral
-      // a + b
+      // a + b = (a+b)
+      // a - b = (a-b)
       case SApply(SSelect(SLiteral(a: Int, StInt), TermName(op), StFunc), List(SLiteral(b: Int, StInt)), StInt) =>
         op match {
           case "$plus"  => SLiteral(a + b, StInt)
           case "$minus" => SLiteral(a - b, StInt)
-          case _        => sx
+          case "$div"   => SLiteral(a / b, StInt)
+          case "$times" => SLiteral(a * b, StInt)
+          case _        => sexp
         }
-      case _ => sx
+      case _ => sexp
     }
   }
-  def simplifyInside(x: STerm): STerm = {
-    x match {
-      case SApply(SSelect(a: STerm, op, StFunc), List(b: STerm), StInt) =>
-        SApply(SSelect(simplify(a), op, StFunc), List(simplify(b)), StInt)
-      case _ => x
+  def simplifyInside(exp: STerm): STerm = {
+    exp match {
+      case SApply(SSelect(x: STerm, op, StFunc), List(y: STerm), StInt) =>
+        SApply(SSelect(simplify(x), op, StFunc), List(simplify(y)), StInt)
+      case _ => exp
     }
 
   }

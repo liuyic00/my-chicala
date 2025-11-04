@@ -37,6 +37,12 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
             case _ =>
               operands.head.tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
           }
+        case VecTake =>
+          Vec(
+            KnownSize(operands(1).asInstanceOf[STerm]),
+            Node,
+            operands(0).tpe.asInstanceOf[Vec].tparam.nomalize
+          )
 
         // ToUInt
         case Cat =>
