@@ -20,6 +20,7 @@ trait ReduceAsTypeOfs extends ChicalaPasss with Transformers with Compares { sel
     object reduceAsTypeOf extends Transformer {
       override def transform(mStatement: MStatement): MStatement = {
         mStatement match {
+          // AsTypeOf
           case CApply(
                 AsTypeOf,
                 List(
@@ -59,6 +60,17 @@ trait ReduceAsTypeOfs extends ChicalaPasss with Transformers with Compares { sel
                   CApply(AsTypeOf, List(newOp1, newOp2))
               }
             }
+          case Connect(left, expr) => {
+            val newLeft = transformT(left)
+            val newExpr = transformT(expr)
+            (newLeft.tpe, newExpr.tpe) match {
+              case (t1 @ Vec(KnownSize(size), _, Bool(_, _)), t2 @ Vec(_, _, Bool(_, _)))
+                  if !sameKnownSignalType(t1, t2) =>
+                Connect(newLeft, CApply(VecTake, List(newExpr, size)))
+              case _ =>
+                Connect(newLeft, newExpr)
+            }
+          }
           case x => super.transform(x)
         }
       }

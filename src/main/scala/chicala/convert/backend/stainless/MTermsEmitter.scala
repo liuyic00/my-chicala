@@ -116,7 +116,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
               case head :: Nil => s"${head}${op}"
               case head :: tail =>
                 if (cApply.op == AsTypeOf && ChicalaConfig.removeTypeConvert)
-                  s"${head} /* .asTypeOf() */"
+                  s"${head} /* ${cApply.operands(0).tpe}.asTypeOf(${cApply.tpe}) */"
                 else
                   s"${head}${op}(${tail.mkString(", ")})"
             }
@@ -295,7 +295,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                   if (sameKnownSignalType(operands.head.tpe.asInstanceOf[Vec].tparam, connect.expr.tpe)) {
                     expr.indented
                   } else if (ChicalaConfig.removeTypeConvert) {
-                    expr.concatLastLine("/* .asTypeOf() */").indented
+                    expr.concatLastLine(s"/* ${connect.expr.tpe}.asTypeOf(${c.tpe}) */").indented
                   } else {
                     CodeLines(s"${left}(${idx}) := ").concatLastLine(expr).indented
                   },
