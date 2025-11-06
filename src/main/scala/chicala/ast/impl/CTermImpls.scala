@@ -3,9 +3,9 @@ package chicala.ast.impl
 import scala.tools.nsc.Global
 
 import chicala.ast.ChicalaAst
-import chicala.ast.util.Computes
+import chicala.ast.util.{Computes, Compares}
 
-trait CTermImpls extends Computes { self: ChicalaAst =>
+trait CTermImpls extends Computes with Compares { self: ChicalaAst =>
   val global: Global
   import global._
 
@@ -34,6 +34,8 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
           operands.map(getSomeWidth) match {
             case Some(SLiteral(a: Int, StInt)) :: Some(SLiteral(b: Int, StInt)) :: Nil =>
               UInt(KnownSize(SLiteral(a.max(b) + 1, StInt)), Node, Undirect)
+            case Some(a) :: Some(b) :: Nil if simplify(a) == simplify(b) =>
+              UInt(KnownSize(plus(a, SLiteral(1, StInt))), Node, Undirect)
             case _ =>
               operands.head.tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
           }
@@ -75,8 +77,12 @@ trait CTermImpls extends Computes { self: ChicalaAst =>
           }
         case AsTypeOf  => operands(1).tpe.asInstanceOf[SignalType].nomalize
         case VecSelect => operands.head.tpe.asInstanceOf[Vec].tparam.nomalize
-        case Mux       => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
-        case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].setInferredWidth
+        case Mux =>
+          if (sameKnownSignalType(operands(1).tpe, operands(2).tpe))
+            operands(1).tpe.asInstanceOf[SignalType].nomalize
+          else
+            operands(1).tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
+        case MuxLookup => operands(1).tpe.asInstanceOf[SignalType].nomalize.setInferredWidth
 
         // Rest
         case _: TypeNotChanged => operands.head.tpe.asInstanceOf[SignalType].nomalize
