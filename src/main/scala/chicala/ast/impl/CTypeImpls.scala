@@ -29,7 +29,7 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
     def updatedDriction(newDirection: CDirection): SignalType
     def nomalize: SignalType = this.updatedPhysical(Node).updatedDriction(Undirect)
     def simplify: SignalType
-    def setInferredWidth: SignalType = this
+    def setInferredWidth: SignalType
     def allSizeKnown: Boolean
     def subSignals: Set[String] = Set.empty
     def allSignals(parentName: String, leftSide: Boolean): Set[String] = physical match {
@@ -76,7 +76,7 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
-    override def setInferredWidth = copy(width = InferredSize)
+    def setInferredWidth = copy(width = InferredSize)
     def simplify: UInt = width match {
       case KnownSize(w) => this.updatedWidth(KnownSize(CTypeImpls.this.simplify(w)))
       case _            => this
@@ -99,7 +99,7 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
-    override def setInferredWidth = copy(width = InferredSize)
+    def setInferredWidth = copy(width = InferredSize)
     def simplify: SInt = width match {
       case KnownSize(w) => this.updatedWidth(KnownSize(CTypeImpls.this.simplify(w)))
       case _            => this
@@ -121,6 +121,8 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
       case Flipped  => copy(direction = direction.flipped)
       case Undirect => copy(direction = Undirect)
     }
+    def setInferredWidth: Bool = this
+
     def simplify: Bool        = this
     def allSizeKnown: Boolean = true
 
@@ -132,6 +134,7 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
       copy(physical = newPhysical, tparam = tparam.updatedPhysical(newPhysical))
     def updatedDriction(newDirection: CDirection): Vec =
       copy(tparam = tparam.updatedDriction(newDirection))
+    def setInferredWidth = copy(size = InferredSize)
 
     def simplify: Vec = size match {
       case KnownSize(w) => Vec(KnownSize(CTypeImpls.this.simplify(w)), physical, tparam.simplify)
@@ -157,6 +160,9 @@ trait CTypeImpls extends Computes { self: ChicalaAst =>
     )
     def updatedDriction(newDirection: CDirection): Bundle = copy(
       signals = signals.map { case (n, t) => (n, t.updatedDriction(newDirection)) }
+    )
+    def setInferredWidth: Bundle = copy(
+      signals = signals.map { case (n, t) => (n, t.setInferredWidth) }
     )
 
     def simplify: Bundle = {
