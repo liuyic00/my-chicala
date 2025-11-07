@@ -37,15 +37,7 @@ class ChicalaPlugin(val global: Global) extends Plugin {
 
   override def init(options: List[String], error: String => Unit): Boolean = {
     for (option <- options) {
-      if (option.startsWith("simulation:")) {
-        val emitFormat = option.substring("simulation:".length)
-        emitFormat match {
-          case "false" => ChicalaConfig.simulation = false
-          case "true"  => ChicalaConfig.simulation = true
-          case _: String =>
-            error("simulation not understood: " + emitFormat)
-        }
-      } else if (option.startsWith("whitelist:")) {
+      if (option.startsWith("whitelist:")) {
         ChicalaConfig.whitelist = option
           .substring("whitelist:".length)
           .split(";")
@@ -53,6 +45,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
           .toList
         inform("chicala whitelist:")
         ChicalaConfig.whitelist.foreach(s => inform(" " + s))
+      } else if (option == "simulation") {
+        ChicalaConfig.simulation = true
       } else if (option == "useRecursiveFunc") {
         ChicalaConfig.useRecursiveFunc = true
       } else if (option == "useVecOnly") {
@@ -75,8 +69,8 @@ class ChicalaPlugin(val global: Global) extends Plugin {
   }
 
   override val optionsHelp: Option[String] = Some(
-    """|  -P:chicala:simulation:<true/false>
-       |                               Set emit mode, for simulation or not. [false]
+    """|  -P:chicala:simulation
+       |                               Also emit codes for simulation.
        |  -P:chicala:whitelist:<package.class>;<package.class>;...
        |                               Only modules in the whitelist will be processed, not set to process all modules. [not set]
        |  -P:chicala:useRecursiveFunc

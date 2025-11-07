@@ -183,7 +183,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
           case SLib(name, tpe) =>
             name match {
               case "scala.`package`.BigInt.apply" =>
-                if (ChicalaConfig.simulation) s"BigInt($args)"
+                if (simulation) s"BigInt($args)"
                 else args
               case "scala.Predef.intWrapper" | "math.this.BigInt.int2bigInt" =>
                 args
@@ -196,15 +196,15 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
 
               case "scala.`package`.Range.apply" => s"Range(${args})"
               case "scala.`package`.Seq.apply" =>
-                val SeqTpe = if (ChicalaConfig.simulation) "Seq" else "List"
+                val SeqTpe = if (simulation) "Seq" else "List"
                 sApply.args match {
                   case Nil          => s"${SeqTpe}[${sApply.tpe.asInstanceOf[StSeq].tparam.toCode}]()"
                   case head :: next => s"${SeqTpe}(${args})"
                 }
 
-              case "scala.Array.fill" => if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
+              case "scala.Array.fill" => if (simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
               case "scala.`package`.Seq.fill" =>
-                if (ChicalaConfig.simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
+                if (simulation) s"Seq.fill(${args})" else s"List.fill(${args})"
 
               // case "h.bv.Lit"
               //    if (ChicalaConfig.useBoolean &&
@@ -254,7 +254,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
               case "toIndexedSeq" => s"${from}"
 
               case "None" if from == "scala" =>
-                if (ChicalaConfig.simulation) "None"
+                if (simulation) "None"
                 else "None()"
               case "Some" if from == "scala" => "Some"
 
@@ -327,7 +327,7 @@ trait MTermsEmitter extends Compares { self: StainlessEmitter with ChicalaAst =>
                     if (sameKnownSignalType(connect.left.tpe, connect.expr.tpe)) {
                       CodeLines(s"${left} = ${expr.toCode}")
                     } else {
-                      if (ChicalaConfig.simulation)
+                      if (simulation)
                         CodeLines(s"${left} = h.bv.connectSeq(${left}, ${expr.toCode})")
                       else {
                         if (t.isInstanceOf[Bool])

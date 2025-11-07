@@ -22,9 +22,11 @@ trait StainlessEmitter
       with MTermEmitterImplicit
       with MDefEmitterImplicit
       with MTypeEmitterImplicit
-      with CodeLinesImplicit
+      with CodeLinesImplicit {
+    def simulation: Boolean
+  }
 
-  object EmitStainless extends StainlessEmitterImplicit {
+  case class EmitStainless(simulation: Boolean) extends StainlessEmitterImplicit {
     def apply(moduleDef: ModuleDef): String = {
       moduleDef.toCode
     }

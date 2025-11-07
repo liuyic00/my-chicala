@@ -45,6 +45,8 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
 
     val testRunDir = new File("test_run_dir/" + phaseName)
     testRunDir.mkdirs()
+    val convertedDir = new File("converted")
+    convertedDir.mkdirs()
 
     val chicalaLog = new BufferedWriter(new PrintWriter(testRunDir.getPath() + "/chicala_log.txt"))
     global.computePhaseAssembly().foreach(s => chicalaLog.write(s.toString + "\n"))
@@ -73,9 +75,7 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
 
     def applyOnTree(tr: Tree, packageName: String): Unit = {
       val packageDir = s"${testRunDir.getPath()}/test/${packageName.replace(".", "/")}"
-      val outputDir  = s"${testRunDir.getPath()}/out/${packageName.replace(".", "/")}"
       (new File(packageDir)).mkdirs()
-      (new File(outputDir)).mkdirs()
 
       tr match {
         case tree @ ClassDef(mods, name, tparams, Template(parents, self, body)) =>
@@ -145,16 +145,20 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
 
               sortedCClassDef match {
                 case m: ModuleDef =>
-                  if (ChicalaConfig.simulation == false)
+                  val proveOutDir = s"${convertedDir.getPath()}/stainless/${packageName.replace(".", "/")}"
+                  (new File(proveOutDir)).mkdirs()
+                  Format.saveToFile(
+                    proveOutDir + s"/${name}.stainless.scala",
+                    EmitStainless(false)(m)
+                  )
+                  if (ChicalaConfig.simulation == true) {
+                    val simOutDir = s"${convertedDir.getPath()}/simulation/${packageName.replace(".", "/")}"
+                    (new File(simOutDir)).mkdirs()
                     Format.saveToFile(
-                      outputDir + s"/${name}.stainless.scala",
-                      EmitStainless(m)
+                      simOutDir + s"/${name}.simscala.scala",
+                      EmitStainless(true)(m)
                     )
-                  else
-                    Format.saveToFile(
-                      outputDir + s"/${name}.simscala.scala",
-                      EmitStainless(m)
-                    )
+                  }
                 case _ =>
               }
             }

@@ -1,5 +1,6 @@
 # Project
-test_run_dir
+test_run_dir/
+converted/
 
 # IDE
 .bsp

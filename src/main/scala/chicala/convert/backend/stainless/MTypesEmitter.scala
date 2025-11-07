@@ -19,25 +19,25 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
             case _: SInt => "SInt"
             case _: Bool => if (ChicalaConfig.useBoolean) "Boolean" else "Bool"
             case Vec(_, _, tparam) =>
-              if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
+              if (simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
             case x => TODO("Code", x)
           }
         case sType: SType =>
           sType match {
-            case StInt            => if (ChicalaConfig.simulation) "Int" else "BigInt"
+            case StInt            => if (simulation) "Int" else "BigInt"
             case StBigInt         => "BigInt"
             case StBoolean        => "Boolean"
             case StTuple(tparams) => s"(${tparams.map(_.toCode).mkString(", ")})"
             case StSeq(tparam) =>
-              if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
+              if (simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
             case StArray(tparam) =>
-              if (ChicalaConfig.simulation) s"Seq[${tparam.toCode}]"
+              if (simulation) s"Seq[${tparam.toCode}]"
               else s"List[${tparam.toCode}]"
             case StUnit => "Unit"
             case StWrapped(s) =>
-              if (ChicalaConfig.simulation) s
+              if (simulation) s
               else
                 s match {
                   case "Option[Int]" => "Option[BigInt]"
@@ -55,7 +55,7 @@ trait MTypesEmitter { self: StainlessEmitter with ChicalaAst =>
         case UInt(width: KnownSize, physical, direction) => s"${tpe.toCode}.empty(${width.width.toCode})"
         case SInt(width: KnownSize, physical, direction) => s"${tpe.toCode}.empty(${width.width.toCode})"
         case Vec(size: KnownSize, physical, tparam) =>
-          if (ChicalaConfig.simulation)
+          if (simulation)
             s"Seq.fill(${size.width.toCode})(${tparam.toCode_empty})"
           else
             s"List.fill(${size.width.toCode})(${tparam.toCode_empty})"

@@ -19,7 +19,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
 
       def toCodeLines: CodeLines = {
         val head =
-          if (!ChicalaConfig.simulation)
+          if (!simulation)
             CodeLines(
               s"""package ${moduleDef.pkg}
                  |
@@ -178,7 +178,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
         val trans = transCL
         val moduleRun = {
           val ensuring =
-            if (ChicalaConfig.simulation) ""
+            if (simulation) ""
             else
               """| ensuring { case (outputs, regNexts) =>
                  |  outputsRequire(outputs) && regsRequire(regNexts)
@@ -215,7 +215,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
               .toCode
           }
           val ensuring =
-            if (ChicalaConfig.simulation) ""
+            if (simulation) ""
             else """| ensuring { case (outputs, regNexts) =>
                     |  outputsRequire(outputs) && regsRequire(regNexts)
                     |}""".stripMargin
@@ -292,7 +292,7 @@ trait ModuleDefsEmitter { self: StainlessEmitter with ChicalaAst =>
         )
 
         val ensuring =
-          if (ChicalaConfig.simulation) ""
+          if (simulation) ""
           else
             s"""| ensuring { case (outputs, regNexts) =>
                 |  outputsRequire(outputs) && regsRequire(regNexts)
