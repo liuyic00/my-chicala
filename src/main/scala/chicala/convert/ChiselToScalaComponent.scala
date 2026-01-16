@@ -55,9 +55,11 @@ class ChiselToScalaComponent(val global: Global) extends PluginComponent {
     var readerInfo: ReaderInfo = ReaderInfo.empty
 
     override def run(): Unit = {
-      super.run()
-      processTodos()
-      readerInfo.todos.foreach { p => reporter.error(p.tree.pos, "This class not processed") }
+      if (!ChicalaConfig.disable) {
+        super.run()
+        processTodos()
+        readerInfo.todos.foreach { p => reporter.error(p.tree.pos, "This class not processed") }
+      }
     }
 
     def apply(unit: CompilationUnit): Unit = {
